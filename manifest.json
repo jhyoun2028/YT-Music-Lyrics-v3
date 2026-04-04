@@ -4,7 +4,7 @@
   "default_locale": "en",
   "name": "YT Music Lyrics",
   "description": "Apple Music-style synced lyrics for YouTube Music",
-  "homepage_url": "https://better-lyrics.boidu.dev",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr1acTRz9gTkmR7G+cFQm9d1K3As2GDHKYwlsYWvEe5MqEqNd8w5gKNJoHQPB3L6bpOkFZ9ZmezKMfGJfhMcr8MaXP8sddlIa3y+aQ0L/fR0S2p/R/FT0PjJPfHHmcNBEfKqcEQVNd0TiGJnBeUJbmYdpC0JNQb7UDl0sNT0gpRFzJmGZZjLoKsBXyQrL5dqPaBMaLKjchHutn/4DD9UaEB2IKGLMaYfWvEliR5FJPBSfJRJlA2YOxhZp7GITmYRHZqJ7rMRvCb4ZqN7JhSN7oX0Ym7ij/iqoVFdME7jSOIO3K4BxJsFP1LUVzP/qo7AJBWrD9q3BkBZoGZ7nwIDAQAB",
   "icons": {
     "16": "images/icons/icon-16.png",
     "48": "images/icons/icon-48.png",
