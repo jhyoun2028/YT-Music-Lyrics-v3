@@ -310,38 +310,47 @@
     return words.length > 0 ? words : null;
   }
 
-  function getAncestorOffset(el) {
-    var total = 0;
-    var p = el.parentElement;
-    while (p) {
-      var tag = p.tagName ? p.tagName.toLowerCase().replace(/^.*:/, "") : "";
-      if (tag === "body" || tag === "tt" || tag === "timedtext") break;
-      var t = p.getAttribute("begin") || p.getAttribute("t");
-      if (t) total += parseTTMLTime(t);
-      p = p.parentElement;
-    }
-    return total;
-  }
-
   function parseTTML(ttmlStr) {
     try {
       var doc = new DOMParser().parseFromString(ttmlStr, "text/xml");
-      var pEls = doc.querySelectorAll("p");
       var result = [];
       var hasWords = false;
-      for (var i = 0; i < pEls.length; i++) {
-        var begin = pEls[i].getAttribute("begin") || pEls[i].getAttribute("t");
-        var text = (pEls[i].textContent || "").trim();
-        if (begin && text) {
-          var ancestorOffset = getAncestorOffset(pEls[i]);
-          var pTime = parseTTMLTime(begin);
-          var absTime = ancestorOffset + pTime;
-          var entry = { time: absTime, text: text };
-          var words = parseTTMLWords(pEls[i], absTime);
+
+      var allDivs = doc.querySelectorAll("div");
+      for (var d = 0; d < allDivs.length; d++) {
+        var div = allDivs[d];
+        var dBegin = div.getAttribute("begin") || div.getAttribute("t");
+        if (!dBegin) continue;
+        if (div.querySelector("div")) continue;
+        var dText = (div.textContent || "").trim();
+        if (!dText) continue;
+        var dTime = parseTTMLTime(dBegin);
+        var entry = { time: dTime, text: dText };
+        var pEl = div.querySelector("p");
+        if (pEl) {
+          var words = parseTTMLWords(pEl, dTime);
           if (words) { entry.words = words; hasWords = true; }
-          result.push(entry);
+        }
+        result.push(entry);
+      }
+
+      if (result.length < 2) {
+        result = [];
+        hasWords = false;
+        var pEls = doc.querySelectorAll("p");
+        for (var j = 0; j < pEls.length; j++) {
+          var pBegin = pEls[j].getAttribute("begin") || pEls[j].getAttribute("t");
+          var pText = (pEls[j].textContent || "").trim();
+          if (pBegin && pText) {
+            var pTime = parseTTMLTime(pBegin);
+            var pEntry = { time: pTime, text: pText };
+            var pWords = parseTTMLWords(pEls[j], pTime);
+            if (pWords) { pEntry.words = pWords; hasWords = true; }
+            result.push(pEntry);
+          }
         }
       }
+
       result.sort(function (a, b) { return a.time - b.time; });
       if (result.length >= 2) {
         console.log("[AML] TTML parsed:", result.length, "lines" + (hasWords ? " (word-synced)" : ""), ", first:", result[0].time.toFixed(2) + "s", JSON.stringify(result[0].text), "last:", result[result.length - 1].time.toFixed(2) + "s");
