@@ -1,90 +1,40 @@
 {
   "manifest_version": 3,
-  "version": "3.0.0",
-  "default_locale": "en",
-  "name": "YT Music Lyrics",
+  "name": "YT Music Lyrics — Final",
+  "version": "2.0.0",
   "description": "Apple Music-style synced lyrics for YouTube Music",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr1acTRz9gTkmR7G+cFQm9d1K3As2GDHKYwlsYWvEe5MqEqNd8w5gKNJoHQPB3L6bpOkFZ9ZmezKMfGJfhMcr8MaXP8sddlIa3y+aQ0L/fR0S2p/R/FT0PjJPfHHmcNBEfKqcEQVNd0TiGJnBeUJbmYdpC0JNQb7UDl0sNT0gpRFzJmGZZjLoKsBXyQrL5dqPaBMaLKjchHutn/4DD9UaEB2IKGLMaYfWvEliR5FJPBSfJRJlA2YOxhZp7GITmYRHZqJ7rMRvCb4ZqN7JhSN7oX0Ym7ij/iqoVFdME7jSOIO3K4BxJsFP1LUVzP/qo7AJBWrD9q3BkBZoGZ7nwIDAQAB",
-  "icons": {
-    "16": "images/icons/icon-16.png",
-    "48": "images/icons/icon-48.png",
-    "512": "images/icons/icon-512.png"
-  },
+  "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "*://music.youtube.com/*",
-    "https://lyrics-api.boidu.dev/*",
-    "https://lyrics.api.dacubeking.com/*",
-    "https://lrclib.net/*"
+    "https://lrclib.net/*",
+    "https://apic-desktop.musixmatch.com/*",
+    "https://lyrics.api.dacubeking.com/*"
   ],
-  "permissions": [
-    "storage",
-    "activeTab"
-  ],
-  "options_ui": {
-    "page": "src/options/options.html",
-    "open_in_tab": false
-  },
-  "web_accessible_resources": [
-    {
-      "matches": [
-        "*://music.youtube.com/*"
-      ],
-      "resources": [
-        "css/blyrics/*.css",
-        "css/ytmusic/*.css",
-        "*.js.map"
-      ]
-    }
-  ],
-  "chromium:background": {
-    "service_worker": "src/options/background.ts",
-    "type": "module"
-  },
-  "gecko:background": {
-    "scripts": [
-      "src/options/background.ts"
-    ]
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "betterlyrics@boidu.dev",
-      "strict_min_version": "100.0"
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
     }
   },
   "content_scripts": [
     {
-      "matches": [
-        "*://music.youtube.com/*"
-      ],
-      "js": [
-        "src/index.ts"
-      ],
-      "run_at": "document_start",
-      "world": "ISOLATED"
+      "matches": ["*://music.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["lyrics.css"],
+      "run_at": "document_idle"
     },
     {
-      "matches": [
-        "*://music.youtube.com/*"
-      ],
-      "js": [
-        "public/earlyInject.js"
-      ],
-      "run_at": "document_start",
-      "world": "MAIN"
-    },
-    {
-      "matches": [
-        "*://music.youtube.com/*"
-      ],
-      "js": [
-        "public/script.js"
-      ],
+      "matches": ["*://music.youtube.com/*"],
+      "js": ["playerBridge.js"],
       "run_at": "document_end",
       "world": "MAIN"
     }
   ],
-  "action": {
-    "default_popup": "src/options/options.html"
-  },
-  "version_name": "3.0.0"
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
 }
