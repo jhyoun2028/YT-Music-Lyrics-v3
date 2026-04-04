@@ -278,10 +278,27 @@
     return parseFloat(str) / 1000;
   }
 
+  function parseTTMLWords(pEl, divOffset) {
+    var spans = pEl.querySelectorAll("span, s");
+    var words = [];
+    for (var s = 0; s < spans.length; s++) {
+      var sb = spans[s].getAttribute("begin") || spans[s].getAttribute("t");
+      var se = spans[s].getAttribute("end") || spans[s].getAttribute("d");
+      var st = (spans[s].textContent || "");
+      if (sb && st) {
+        var startSec = divOffset + parseTTMLTime(sb);
+        var endSec = se ? divOffset + parseTTMLTime(se) : 0;
+        words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: st });
+      }
+    }
+    return words.length > 0 ? words : null;
+  }
+
   function parseTTML(ttmlStr) {
     try {
       var doc = new DOMParser().parseFromString(ttmlStr, "text/xml");
       var result = [];
+      var hasWords = false;
       var divEls = doc.querySelectorAll("div");
       if (divEls.length > 0) {
         for (var d = 0; d < divEls.length; d++) {
@@ -294,25 +311,32 @@
             var text = (pEls[i].textContent || "").trim();
             if (begin && text) {
               var pTime = parseTTMLTime(begin);
-              result.push({ time: divOffset + pTime, text: text });
+              var entry = { time: divOffset + pTime, text: text };
+              var words = parseTTMLWords(pEls[i], divOffset);
+              if (words) { entry.words = words; hasWords = true; }
+              result.push(entry);
             }
           }
         }
       }
       if (result.length < 2) {
         result = [];
+        hasWords = false;
         var topP = doc.querySelectorAll("p");
         for (var j = 0; j < topP.length; j++) {
           var pBegin = topP[j].getAttribute("begin") || topP[j].getAttribute("t");
           var pText = (topP[j].textContent || "").trim();
           if (pBegin && pText) {
-            result.push({ time: parseTTMLTime(pBegin), text: pText });
+            var topEntry = { time: parseTTMLTime(pBegin), text: pText };
+            var topWords = parseTTMLWords(topP[j], 0);
+            if (topWords) { topEntry.words = topWords; hasWords = true; }
+            result.push(topEntry);
           }
         }
       }
       result.sort(function (a, b) { return a.time - b.time; });
       if (result.length >= 2) {
-        console.log("[AML] TTML parsed:", result.length, "lines, first:", result[0].time.toFixed(2) + "s", JSON.stringify(result[0].text), "last:", result[result.length - 1].time.toFixed(2) + "s");
+        console.log("[AML] TTML parsed:", result.length, "lines" + (hasWords ? " (word-synced)" : ""), ", first:", result[0].time.toFixed(2) + "s", JSON.stringify(result[0].text), "last:", result[result.length - 1].time.toFixed(2) + "s");
       }
       return result;
     } catch (e) { return []; }
@@ -327,7 +351,11 @@
         var ttmlStr = ttmlData.ttml || (typeof ttmlData === "string" ? ttmlData : null);
         if (ttmlStr) {
           var ttmlLines = parseTTML(ttmlStr);
-          if (ttmlLines.length >= 2) return { source: "cubey-ttml", type: "line", parsed: ttmlLines };
+          if (ttmlLines.length >= 2) {
+            var hasWordData = false;
+            for (var tw = 0; tw < ttmlLines.length; tw++) { if (ttmlLines[tw].words) { hasWordData = true; break; } }
+            return { source: "cubey-ttml", type: hasWordData ? "word" : "line", parsed: ttmlLines, hasWords: hasWordData };
+          }
         }
       } catch (e) { }
     }
@@ -1233,12 +1261,34 @@
 
   function showWithSyncedLyrics(parsed) {
     useTimedSync = true;
-    useWordSync = false;
-    wordData = [];
     currentVideoId = getVideoId();
     userOffset = loadSongOffset(currentVideoId);
+
+    var hasWords = false;
+    wordData = [];
+    for (var w = 0; w < parsed.length; w++) {
+      if (parsed[w].words && parsed[w].words.length > 0) {
+        hasWords = true;
+        wordData.push({ lineIndex: w, syllables: parsed[w].words });
+      }
+    }
+    useWordSync = hasWords;
+
     var withInterludes = insertInterludes(parsed);
     timedData = withInterludes;
+
+    if (useWordSync) {
+      for (var adj = 0; adj < wordData.length; adj++) {
+        var offset = 0;
+        for (var k = 0; k < withInterludes.length; k++) {
+          if (k <= wordData[adj].lineIndex) {
+            if (withInterludes[k].interlude) offset++;
+          }
+        }
+        wordData[adj].lineIndex = wordData[adj].lineIndex + offset;
+      }
+    }
+
     nonEmptyIndices = [];
     var lines = [];
     for (var i = 0; i < withInterludes.length; i++) {
@@ -1308,6 +1358,10 @@
             if (overlay) removeOverlay();
             lyricsSource = result.source; lyricsType = result.type;
             showWithSyncedLyrics(result.parsed);
+          } else if (result && result.plainText) {
+            if (overlay) removeOverlay();
+            lyricsSource = result.source; lyricsType = "plain";
+            showWithPlainLyrics(result.plainText);
           } else if (!overlay) {
             showNoLyrics();
           }
@@ -1396,6 +1450,7 @@
     if (!isExtensionValid()) return;
     var song = getSongInfo();
     if (song.title && song.title !== lastSongTitle) {
+      var wasShowing = !!overlay;
       lastSongTitle = song.title;
       lyricsTabClicked = false;
       closedByUser = false;
@@ -1403,7 +1458,7 @@
       userOffset = 0;
       fetchId++;
       removeOverlay();
-      tryShowLyricsWithRetry();
+      if (wasShowing) tryShowLyricsWithRetry();
     }
   }
 
@@ -1445,19 +1500,51 @@
     }).observe(document.body, { childList: true, subtree: true });
   }
 
+  function findLyricsTab() {
+    var sels = [
+      "ytmusic-player-page tp-yt-paper-tab",
+      "tp-yt-paper-tab.tab-header",
+      "#tabsContent tp-yt-paper-tab",
+      "tp-yt-paper-tab",
+    ];
+    var tabs = [];
+    for (var c = 0; c < sels.length; c++) {
+      tabs = document.querySelectorAll(sels[c]);
+      if (tabs.length > 0) break;
+    }
+    var kw = ["lyrics", "lyric", "\uac00\uc0ac", "\u6b4c\u8a5e", "letras", "paroles", "testo"];
+    for (var t = 0; t < tabs.length; t++) {
+      var text = tabs[t].textContent.trim().toLowerCase();
+      for (var k = 0; k < kw.length; k++) {
+        if (text.indexOf(kw[k]) !== -1) return tabs[t];
+      }
+    }
+    return null;
+  }
+
+  function watchLyricsTab() {
+    document.addEventListener("click", function (e) {
+      var tab = findLyricsTab();
+      if (!tab) return;
+      if (tab.contains(e.target) || tab === e.target) {
+        if (overlay) {
+          closedByUser = true;
+          hideOverlay();
+        } else {
+          closedByUser = false;
+          var song = getSongInfo();
+          lastSongTitle = song.title || "";
+          tryShowLyricsWithRetry();
+        }
+      }
+    }, true);
+  }
+
   function init() {
     var song = getSongInfo();
     lastSongTitle = song.title || "";
-    if (lastSongTitle) {
-      tryShowLyricsWithRetry();
-    } else {
-      var wait = setInterval(function () {
-        var s = getSongInfo();
-        if (s.title) { clearInterval(wait); lastSongTitle = s.title; tryShowLyricsWithRetry(); }
-      }, 250);
-      setTimeout(function () { clearInterval(wait); }, 15000);
-    }
     watchSongChanges();
+    watchLyricsTab();
   }
 
   document.addEventListener("keydown", function (e) {
