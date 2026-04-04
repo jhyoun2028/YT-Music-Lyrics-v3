@@ -278,18 +278,34 @@
     return parseFloat(str) / 1000;
   }
 
-  function parseTTMLWords(pEl, divOffset) {
-    var spans = pEl.querySelectorAll("span, s");
+  function parseTTMLWords(pEl, pAbsTime) {
+    var spans = pEl.children;
     var words = [];
     for (var s = 0; s < spans.length; s++) {
-      var sb = spans[s].getAttribute("begin") || spans[s].getAttribute("t");
-      var se = spans[s].getAttribute("end") || spans[s].getAttribute("d");
-      var st = (spans[s].textContent || "");
-      if (sb && st) {
-        var startSec = divOffset + parseTTMLTime(sb);
-        var endSec = se ? divOffset + parseTTMLTime(se) : 0;
-        words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: st });
+      var el = spans[s];
+      var tag = el.tagName ? el.tagName.toLowerCase().replace(/^.*:/, "") : "";
+      if (tag !== "span" && tag !== "s") continue;
+      var text = (el.textContent || "");
+      if (!text) continue;
+
+      var beginAttr = el.getAttribute("begin");
+      var endAttr = el.getAttribute("end");
+      var tAttr = el.getAttribute("t");
+      var dAttr = el.getAttribute("d");
+
+      var startSec, endSec;
+      if (beginAttr) {
+        startSec = parseTTMLTime(beginAttr);
+        endSec = endAttr ? parseTTMLTime(endAttr) : 0;
+      } else if (tAttr !== null) {
+        var offset = parseTTMLTime(tAttr);
+        var dur = dAttr ? parseTTMLTime(dAttr) : 0;
+        startSec = pAbsTime + offset;
+        endSec = dur > 0 ? startSec + dur : 0;
+      } else {
+        continue;
       }
+      words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: text });
     }
     return words.length > 0 ? words : null;
   }
@@ -312,7 +328,7 @@
             if (begin && text) {
               var pTime = parseTTMLTime(begin);
               var entry = { time: divOffset + pTime, text: text };
-              var words = parseTTMLWords(pEls[i], divOffset);
+              var words = parseTTMLWords(pEls[i], divOffset + pTime);
               if (words) { entry.words = words; hasWords = true; }
               result.push(entry);
             }
@@ -327,8 +343,9 @@
           var pBegin = topP[j].getAttribute("begin") || topP[j].getAttribute("t");
           var pText = (topP[j].textContent || "").trim();
           if (pBegin && pText) {
-            var topEntry = { time: parseTTMLTime(pBegin), text: pText };
-            var topWords = parseTTMLWords(topP[j], 0);
+            var topTime = parseTTMLTime(pBegin);
+            var topEntry = { time: topTime, text: pText };
+            var topWords = parseTTMLWords(topP[j], topTime);
             if (topWords) { topEntry.words = topWords; hasWords = true; }
             result.push(topEntry);
           }
