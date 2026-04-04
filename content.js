@@ -1163,21 +1163,7 @@
     document.body.appendChild(overlay);
     activeIndex = -1;
     cacheLinePositions();
-
-    var initTarget = 0;
-    var initPlayerTime = playerTime;
-    if (!(initPlayerTime > 0)) {
-      var initVid = getVideo();
-      if (initVid && initVid.currentTime > 0) initPlayerTime = initVid.currentTime;
-    }
-    if (useTimedSync && timedData.length > 0 && initPlayerTime > 0) {
-      var initTime = initPlayerTime + userOffset;
-      for (var k = 0; k < timedData.length; k++) {
-        if (timedData[k].time <= initTime + 0.15) initTarget = k;
-        else break;
-      }
-    }
-    setActive(initTarget);
+    setActive(0);
     startSync();
 
     requestAnimationFrame(function () {
