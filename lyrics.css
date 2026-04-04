@@ -705,52 +705,35 @@
   }
 }
 
-/* ── Word Sync (Karaoke Wipe) ── */
+/* ── Word Sync ── */
 
 .aml-word {
   display: inline;
+  transition:
+    color     0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity   0.18s cubic-bezier(0.16, 1, 0.3, 1),
+    filter    0.25s cubic-bezier(0.16, 1, 0.3, 1);
   color: inherit;
   opacity: inherit;
-  -webkit-text-fill-color: inherit;
 }
 
 .aml-line.aml-active .aml-word {
+  color: rgba(255, 255, 255, 0.22);
   opacity: 1;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(255, 255, 255, 0.25) 100%
-  );
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
   filter: blur(0px);
 }
 
 .aml-word.aml-word-active {
+  color: #ffffff !important;
   opacity: 1 !important;
-  background: linear-gradient(
-    to right,
-    #ffffff 0%,
-    #ffffff var(--wp, 0%),
-    rgba(255, 255, 255, 0.25) var(--wp, 0%),
-    rgba(255, 255, 255, 0.25) 100%
-  ) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.25)) blur(0px) !important;
+  filter: blur(0px) !important;
+  text-shadow:
+    0 0 20px rgba(255, 255, 255, 0.30),
+    0 0 40px rgba(255, 255, 255, 0.10);
 }
 
 .aml-word.aml-word-past {
+  color: rgba(255, 255, 255, 0.78) !important;
   opacity: 1 !important;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0.82) 0%,
-    rgba(255, 255, 255, 0.82) 100%
-  ) !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
   filter: blur(0px) !important;
 }

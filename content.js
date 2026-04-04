@@ -278,34 +278,18 @@
     return parseFloat(str) / 1000;
   }
 
-  function parseTTMLWords(pEl, pAbsTime) {
-    var spans = pEl.children;
+  function parseTTMLWords(pEl, divOffset) {
+    var spans = pEl.querySelectorAll("span, s");
     var words = [];
     for (var s = 0; s < spans.length; s++) {
-      var el = spans[s];
-      var tag = el.tagName ? el.tagName.toLowerCase().replace(/^.*:/, "") : "";
-      if (tag !== "span" && tag !== "s") continue;
-      var text = (el.textContent || "");
-      if (!text) continue;
-
-      var beginAttr = el.getAttribute("begin");
-      var endAttr = el.getAttribute("end");
-      var tAttr = el.getAttribute("t");
-      var dAttr = el.getAttribute("d");
-
-      var startSec, endSec;
-      if (beginAttr) {
-        startSec = parseTTMLTime(beginAttr);
-        endSec = endAttr ? parseTTMLTime(endAttr) : 0;
-      } else if (tAttr !== null) {
-        var offset = parseTTMLTime(tAttr);
-        var dur = dAttr ? parseTTMLTime(dAttr) : 0;
-        startSec = pAbsTime + offset;
-        endSec = dur > 0 ? startSec + dur : 0;
-      } else {
-        continue;
+      var sb = spans[s].getAttribute("begin") || spans[s].getAttribute("t");
+      var se = spans[s].getAttribute("end") || spans[s].getAttribute("d");
+      var st = (spans[s].textContent || "");
+      if (sb && st) {
+        var startSec = divOffset + parseTTMLTime(sb);
+        var endSec = se ? divOffset + parseTTMLTime(se) : 0;
+        words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: st });
       }
-      words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: text });
     }
     return words.length > 0 ? words : null;
   }
@@ -313,38 +297,46 @@
   function parseTTML(ttmlStr) {
     try {
       var doc = new DOMParser().parseFromString(ttmlStr, "text/xml");
-      var pEls = doc.querySelectorAll("p");
       var result = [];
       var hasWords = false;
-
-      if (pEls.length > 0) {
-        var firstP = pEls[0];
-        var attrs = [];
-        for (var a = 0; a < firstP.attributes.length; a++) attrs.push(firstP.attributes[a].name + "=" + firstP.attributes[a].value);
-        var parentTag = firstP.parentElement ? firstP.parentElement.tagName : "?";
-        var parentAttrs = [];
-        if (firstP.parentElement) {
-          for (var pa = 0; pa < firstP.parentElement.attributes.length; pa++) parentAttrs.push(firstP.parentElement.attributes[pa].name + "=" + firstP.parentElement.attributes[pa].value);
-        }
-        console.log("[AML] TTML raw: p[0] attrs=[" + attrs.join(", ") + "] parent=<" + parentTag + " " + parentAttrs.join(" ") + "> children=" + firstP.children.length);
-      }
-
-      for (var i = 0; i < pEls.length; i++) {
-        var begin = pEls[i].getAttribute("begin") || pEls[i].getAttribute("t");
-        var text = (pEls[i].textContent || "").trim();
-        if (begin && text) {
-          var pTime = parseTTMLTime(begin);
-          var entry = { time: pTime, text: text };
-          var words = parseTTMLWords(pEls[i], pTime);
-          if (words) { entry.words = words; hasWords = true; }
-          result.push(entry);
+      var divEls = doc.querySelectorAll("div");
+      if (divEls.length > 0) {
+        for (var d = 0; d < divEls.length; d++) {
+          var divBegin = divEls[d].getAttribute("begin") || divEls[d].getAttribute("t");
+          var divOffset = divBegin ? parseTTMLTime(divBegin) : 0;
+          var pEls = divEls[d].querySelectorAll(":scope > p");
+          if (pEls.length === 0) pEls = divEls[d].querySelectorAll("p");
+          for (var i = 0; i < pEls.length; i++) {
+            var begin = pEls[i].getAttribute("begin") || pEls[i].getAttribute("t");
+            var text = (pEls[i].textContent || "").trim();
+            if (begin && text) {
+              var pTime = parseTTMLTime(begin);
+              var entry = { time: divOffset + pTime, text: text };
+              var words = parseTTMLWords(pEls[i], divOffset);
+              if (words) { entry.words = words; hasWords = true; }
+              result.push(entry);
+            }
+          }
         }
       }
-
+      if (result.length < 2) {
+        result = [];
+        hasWords = false;
+        var topP = doc.querySelectorAll("p");
+        for (var j = 0; j < topP.length; j++) {
+          var pBegin = topP[j].getAttribute("begin") || topP[j].getAttribute("t");
+          var pText = (topP[j].textContent || "").trim();
+          if (pBegin && pText) {
+            var topEntry = { time: parseTTMLTime(pBegin), text: pText };
+            var topWords = parseTTMLWords(topP[j], 0);
+            if (topWords) { topEntry.words = topWords; hasWords = true; }
+            result.push(topEntry);
+          }
+        }
+      }
       result.sort(function (a, b) { return a.time - b.time; });
       if (result.length >= 2) {
         console.log("[AML] TTML parsed:", result.length, "lines" + (hasWords ? " (word-synced)" : ""), ", first:", result[0].time.toFixed(2) + "s", JSON.stringify(result[0].text), "last:", result[result.length - 1].time.toFixed(2) + "s");
-        console.log("[AML] TTML times[0-5]:", result.slice(0, 6).map(function (r) { return r.time.toFixed(2); }).join(", "));
       }
       return result;
     } catch (e) { return []; }
@@ -793,17 +785,13 @@
             if (!words[w].classList.contains("aml-word-active")) {
               words[w].classList.add("aml-word-active");
             }
-            var progress = (we > ws) ? Math.min(((timeMs - ws) / (we - ws)) * 100, 100) : 100;
-            words[w].style.setProperty("--wp", progress + "%");
           } else if (timeMs >= we && we > 0) {
             words[w].classList.remove("aml-word-active");
-            words[w].style.setProperty("--wp", "100%");
             if (!words[w].classList.contains("aml-word-past")) {
               words[w].classList.add("aml-word-past");
             }
           } else {
             words[w].classList.remove("aml-word-active", "aml-word-past");
-            words[w].style.setProperty("--wp", "0%");
           }
         }
       }
@@ -1154,7 +1142,21 @@
     document.body.appendChild(overlay);
     activeIndex = -1;
     cacheLinePositions();
-    setActive(0);
+
+    var initTarget = 0;
+    var initPlayerTime = playerTime;
+    if (!(initPlayerTime > 0)) {
+      var initVid = getVideo();
+      if (initVid && initVid.currentTime > 0) initPlayerTime = initVid.currentTime;
+    }
+    if (useTimedSync && timedData.length > 0 && initPlayerTime > 0) {
+      var initTime = initPlayerTime + userOffset;
+      for (var k = 0; k < timedData.length; k++) {
+        if (timedData[k].time <= initTime + 0.15) initTarget = k;
+        else break;
+      }
+    }
+    setActive(initTarget);
     startSync();
 
     requestAnimationFrame(function () {
