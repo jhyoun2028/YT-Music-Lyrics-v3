@@ -1,0 +1,80 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  HAS_CF_SECRETS: ${{ secrets.CF_ACCOUNT_ID != '' && secrets.CF_ZONE_ID != '' && secrets.CF_API_TOKEN != '' && secrets.SOURCEMAPS_API_KEY != '' && vars.SOURCEMAPS_API_URL != '' }}
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+      
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Bypass Cloudflare for GitHub Action
+        uses: xiaotianxt/bypass-cloudflare-for-github-action@v2.0.1
+        if: ${{ env.HAS_CF_SECRETS == 'true' }}
+        with:
+          cf_account_id: ${{ secrets.CF_ACCOUNT_ID }}
+          cf_zone_id: ${{ secrets.CF_ZONE_ID }}
+          cf_api_token: ${{ secrets.CF_API_TOKEN }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: 'npm'
+
+      - name: Get version and hash
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          HASH=$(git rev-parse --short HEAD)
+          echo "NIGHTLY_VERSION=$VERSION.${{ github.run_number }}-dev ($HASH)" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm install --no-save @biomejs/cli-linux-x64@2.0.4 @rspack/binding-linux-x64-gnu@1.5.8
+
+      - name: Run Typescript
+        run: npm run typecheck
+
+      - name: Update version in files
+        run: npm run update-version -- "${{ env.NIGHTLY_VERSION }}"
+
+      - name: Build extension (with sourcemap uplaod)
+        if: ${{ env.HAS_CF_SECRETS == 'true' }}
+        env:
+          SOURCEMAPS_API_KEY: ${{ secrets.SOURCEMAPS_API_KEY }}
+          SOURCEMAPS_BASE_URL: ${{ env.SOURCEMAPS_API_URL }}
+        run: npm run build:ci
+
+      - name: Build extension (without sourcemap uplaod)
+        if: ${{ env.HAS_CF_SECRETS == 'false' }}
+        run: npm run build
+
+      - name: Upload Chrome artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-v${{ env.NIGHTLY_VERSION }}
+          path: dist/chrome
+
+      - name: Upload Edge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: edge-v${{ env.NIGHTLY_VERSION }}
+          path: dist/edge
+
+      - name: Upload Firefox artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-v${{ env.NIGHTLY_VERSION }}
+          path: dist/firefox

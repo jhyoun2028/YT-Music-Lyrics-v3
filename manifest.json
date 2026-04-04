@@ -1,0 +1,90 @@
+{
+  "manifest_version": 3,
+  "version": "3.0.0",
+  "default_locale": "en",
+  "name": "YT Music Lyrics",
+  "description": "Apple Music-style synced lyrics for YouTube Music",
+  "homepage_url": "https://better-lyrics.boidu.dev",
+  "icons": {
+    "16": "images/icons/icon-16.png",
+    "48": "images/icons/icon-48.png",
+    "512": "images/icons/icon-512.png"
+  },
+  "host_permissions": [
+    "*://music.youtube.com/*",
+    "https://lyrics-api.boidu.dev/*",
+    "https://lyrics.api.dacubeking.com/*",
+    "https://lrclib.net/*"
+  ],
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": false
+  },
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "*://music.youtube.com/*"
+      ],
+      "resources": [
+        "css/blyrics/*.css",
+        "css/ytmusic/*.css",
+        "*.js.map"
+      ]
+    }
+  ],
+  "chromium:background": {
+    "service_worker": "src/options/background.ts",
+    "type": "module"
+  },
+  "gecko:background": {
+    "scripts": [
+      "src/options/background.ts"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "betterlyrics@boidu.dev",
+      "strict_min_version": "100.0"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://music.youtube.com/*"
+      ],
+      "js": [
+        "src/index.ts"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    },
+    {
+      "matches": [
+        "*://music.youtube.com/*"
+      ],
+      "js": [
+        "public/earlyInject.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "*://music.youtube.com/*"
+      ],
+      "js": [
+        "public/script.js"
+      ],
+      "run_at": "document_end",
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_popup": "src/options/options.html"
+  },
+  "version_name": "3.0.0"
+}

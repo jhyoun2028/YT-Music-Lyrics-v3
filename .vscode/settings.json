@@ -1,0 +1,16 @@
+{
+  "markdownlint.config": {
+    "MD033": {
+      "allowed_elements": ["p", "img", "a", "h1"]
+    },
+    "MD041": false
+  },
+  "editor.defaultFormatter": "biomejs.biome",
+	"editor.formatOnSave": true,
+  "prettier.enable": false,
+  "[markdown]": {
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.formatOnSave": true
+  },
+	"markdown.extension.toc.levels": "1..3"
+}
