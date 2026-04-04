@@ -47,7 +47,7 @@
         "@fsegurai/codemirror-theme-material-dark": "^6.2.2",
         "codemirror-lang-rics": "^0.3.20",
         "dompurify": "^3.3.3",
-        "extension": "2.1.3",
+        "extension": "3.10.3",
         "fast-xml-parser": "^5.5.7",
         "fflate": "^0.8.2",
         "marked": "^17.0.4",
