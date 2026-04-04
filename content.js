@@ -785,13 +785,17 @@
             if (!words[w].classList.contains("aml-word-active")) {
               words[w].classList.add("aml-word-active");
             }
+            var progress = (we > ws) ? Math.min(((timeMs - ws) / (we - ws)) * 100, 100) : 100;
+            words[w].style.setProperty("--wp", progress + "%");
           } else if (timeMs >= we && we > 0) {
             words[w].classList.remove("aml-word-active");
+            words[w].style.setProperty("--wp", "100%");
             if (!words[w].classList.contains("aml-word-past")) {
               words[w].classList.add("aml-word-past");
             }
           } else {
             words[w].classList.remove("aml-word-active", "aml-word-past");
+            words[w].style.setProperty("--wp", "0%");
           }
         }
       }
