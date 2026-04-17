@@ -26,7 +26,6 @@
   var cachedLines = null;
   var useWordSync = false;
   var wordData = [];
-  var activeWordIndex = -1;
   var lyricsSource = "";
   var lyricsType = "";
   var debugVisible = false;
@@ -266,9 +265,9 @@
   }
 
   function cubeyFetchLyrics(title, artist, duration, videoId) {
-    console.log("[AML] Cubey: starting, videoId=" + videoId);
+    if (debugVisible) console.log("[AML] Cubey: starting, videoId=" + videoId);
     return cubeyGetJWT(false).then(function (jwt) {
-      console.log("[AML] Cubey: JWT=" + (jwt ? "got" : "null"));
+      if (debugVisible) console.log("[AML] Cubey: JWT=" + (jwt ? "got" : "null"));
       if (!jwt) return null;
 
       function doFetch(token) {
@@ -277,12 +276,12 @@
           "&duration=" + Math.round(duration) +
           "&videoId=" + encodeURIComponent(videoId) +
           "&alwaysFetchMetadata=false";
-        console.log("[AML] Cubey fetch:", url);
+        if (debugVisible) console.log("[AML] Cubey fetch:", url);
         return fetch(url, {
           headers: { "Authorization": "Bearer " + token },
           credentials: "include"
         }).then(function (r) {
-          console.log("[AML] Cubey response:", r.status);
+          if (debugVisible) console.log("[AML] Cubey response:", r.status);
           if (r.status === 403) {
             return cubeyGetJWT(true).then(function (newJwt) {
               if (!newJwt) return null;
@@ -406,7 +405,7 @@
         }
       }
       result.sort(function (a, b) { return a.time - b.time; });
-      if (result.length >= 2) {
+      if (debugVisible && result.length >= 2) {
         console.log("[AML] TTML parsed:", result.length, "lines" + (hasWords ? " (word-synced)" : ""), ", first:", result[0].time.toFixed(2) + "s", JSON.stringify(result[0].text), "last:", result[result.length - 1].time.toFixed(2) + "s");
       }
       return result;
@@ -857,7 +856,7 @@
     if (!overlay || userSeeking) return;
     var correctedTime = t + userOffset;
     var video = getVideo();
-    if (t - lastSyncLog >= 3) {
+    if (debugVisible && t - lastSyncLog >= 3) {
       lastSyncLog = t;
       var nextTime = "none";
       if (useTimedSync && activeIndex >= 0 && activeIndex + 1 < timedData.length) nextTime = timedData[activeIndex + 1].time.toFixed(2);
