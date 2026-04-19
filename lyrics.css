@@ -423,6 +423,21 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Visible keyboard focus rings — show only when keyboard-navigating. */
+.aml-close:focus-visible,
+.aml-tb-btn:focus-visible,
+.aml-offset-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.aml-overlay:hover .aml-close:focus-visible,
+.aml-close:focus-visible {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.95);
+}
+
 /* ── No Lyrics ── */
 
 .aml-no-lyrics {

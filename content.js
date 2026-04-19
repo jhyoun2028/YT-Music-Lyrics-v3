@@ -1076,6 +1076,8 @@
 
     overlay = document.createElement("div");
     overlay.className = "aml-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-label", "Synced lyrics");
 
     var bgTint = document.createElement("div");
     bgTint.className = "aml-bg-tint";
@@ -1159,6 +1161,7 @@
     var closeBtn = document.createElement("button");
     closeBtn.className = "aml-close";
     closeBtn.textContent = "\u00d7";
+    closeBtn.setAttribute("aria-label", "Close lyrics");
     closeBtn.addEventListener("click", function () {
       closedByUser = true;
       hideOverlay();
@@ -1222,12 +1225,15 @@
     var prevBtn = document.createElement("button");
     prevBtn.className = "aml-tb-btn aml-tb-prev";
     prevBtn.textContent = "\u23ee";
+    prevBtn.setAttribute("aria-label", "Previous track");
     var playBtn = document.createElement("button");
     playBtn.className = "aml-tb-btn aml-tb-play";
     playBtn.textContent = "\u25b6";
+    playBtn.setAttribute("aria-label", "Play or pause");
     var nextBtn = document.createElement("button");
     nextBtn.className = "aml-tb-btn aml-tb-next";
     nextBtn.textContent = "\u23ed";
+    nextBtn.setAttribute("aria-label", "Next track");
     toolbarControls.appendChild(prevBtn);
     toolbarControls.appendChild(playBtn);
     toolbarControls.appendChild(nextBtn);
