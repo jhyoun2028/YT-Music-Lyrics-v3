@@ -924,9 +924,13 @@
 
   function formatTime(s) {
     if (!s || isNaN(s)) return "0:00";
-    var m = Math.floor(s / 60);
-    var sec = Math.floor(s % 60);
-    return m + ":" + (sec < 10 ? "0" : "") + sec;
+    var total = Math.floor(s);
+    var h = Math.floor(total / 3600);
+    var m = Math.floor((total % 3600) / 60);
+    var sec = total % 60;
+    var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    if (h > 0) return h + ":" + pad(m) + ":" + pad(sec);
+    return m + ":" + pad(sec);
   }
 
   function clickTransportButton(selectors) {
