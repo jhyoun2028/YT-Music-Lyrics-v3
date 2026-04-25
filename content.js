@@ -1082,7 +1082,7 @@
 
     var debugEl = document.createElement("div");
     debugEl.className = "aml-debug";
-    debugEl.style.display = "block";
+    debugEl.style.display = debugVisible ? "block" : "none";
     debugEl.textContent = lyricsSource + " | " + lyricsType;
     overlay.appendChild(debugEl);
 
