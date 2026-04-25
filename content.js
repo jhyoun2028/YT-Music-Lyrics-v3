@@ -735,6 +735,8 @@
     stopSync();
     syncActive = true;
     lastVisibleTime = 0;
+    lastSyncLog = 0;
+    lastSearchHint = 0;
 
     function syncFrame() {
       if (!syncActive || !overlay) return;
@@ -746,6 +748,7 @@
       if (t > 0) {
         if (lastVisibleTime > 0 && Math.abs(t - lastVisibleTime) > 1) {
           activeIndex = -1;
+          lastSearchHint = 0;
         }
         lastVisibleTime = t;
         processSync(t);
@@ -897,6 +900,7 @@
     }
 
     activeIndex = -1;
+    lastSearchHint = 0;
     seekTimeout = setTimeout(function () { userSeeking = false; }, 150);
   }
 
