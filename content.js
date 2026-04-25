@@ -761,6 +761,9 @@
   }
 
   var lastSyncLog = 0;
+  var SYNC_LOOKAHEAD = 0.05;
+  var FALLBACK_LOOKAHEAD = 0.10;
+  var lastSearchHint = 0;
   function processSync(t) {
     if (!overlay || userSeeking) return;
     var correctedTime = t + userOffset;
@@ -775,24 +778,27 @@
     var targetLine = -1;
 
     if (useTimedSync && timedData.length > 0) {
-      for (var i = 0; i < timedData.length; i++) {
-        if (timedData[i].time <= correctedTime + 0.15) {
-          targetLine = i;
-        } else {
-          break;
-        }
-      }
+      var threshold = correctedTime + SYNC_LOOKAHEAD;
+      // Incremental forward scan — most frames advance by 0-1 lines.
+      var hint = lastSearchHint;
+      if (hint < 0 || hint >= timedData.length) hint = 0;
+      // Rewind hint if needed (after seek/song change).
+      if (timedData[hint].time > threshold) hint = 0;
+      var i = hint;
+      while (i < timedData.length && timedData[i].time <= threshold) i++;
+      targetLine = i - 1;
       if (targetLine < 0) targetLine = 0;
+      lastSearchHint = targetLine;
     } else if (fallbackTimes.length > 0) {
+      var fThreshold = correctedTime + FALLBACK_LOOKAHEAD;
       for (var j = 0; j < fallbackTimes.length; j++) {
-        if (fallbackTimes[j].time <= correctedTime + 0.2) targetLine = fallbackTimes[j].lineIndex;
+        if (fallbackTimes[j].time <= fThreshold) targetLine = fallbackTimes[j].lineIndex;
         else break;
       }
       if (targetLine < 0) targetLine = fallbackTimes[0].lineIndex;
     }
 
     if (targetLine >= 0 && targetLine !== activeIndex) {
-      console.log("[AML] sync: t=" + correctedTime.toFixed(2) + " line " + activeIndex + " → " + targetLine + " (time=" + (timedData[targetLine] ? timedData[targetLine].time.toFixed(2) : "?") + ")");
       setActive(targetLine);
     }
 
