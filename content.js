@@ -1062,14 +1062,17 @@
 
     var offsetWrap = document.createElement("div");
     offsetWrap.className = "aml-offset-controls";
+    offsetWrap.title = "Sync offset — keyboard: [ earlier, ] later, \\ reset";
     var offsetMinus = document.createElement("button");
     offsetMinus.className = "aml-offset-btn";
     offsetMinus.textContent = "-0.1s";
+    offsetMinus.title = "Lyrics earlier ([)";
     var offsetDisplay = document.createElement("span");
     offsetDisplay.className = "aml-offset-display";
     var offsetPlus = document.createElement("button");
     offsetPlus.className = "aml-offset-btn";
     offsetPlus.textContent = "+0.1s";
+    offsetPlus.title = "Lyrics later (])";
     function updateOffsetLabel() {
       var ms = Math.round(userOffset * 1000);
       offsetDisplay.textContent = (ms >= 0 ? "+" : "") + ms + "ms";
@@ -1580,13 +1583,36 @@
     watchLyricsTab();
   }
 
+  function bumpOffset(deltaSec) {
+    userOffset += deltaSec;
+    saveSongOffset(currentVideoId, userOffset);
+    if (!overlay) return;
+    var disp = overlay.querySelector(".aml-offset-display");
+    if (disp) {
+      var ms = Math.round(userOffset * 1000);
+      disp.textContent = (ms >= 0 ? "+" : "") + ms + "ms";
+    }
+    var dbg = overlay.querySelector(".aml-debug");
+    if (dbg && debugVisible) {
+      dbg.textContent = lyricsSource + " | " + lyricsType + " | offset: " + Math.round(userOffset * 1000) + "ms";
+    }
+    lastSearchHint = 0;
+  }
+
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && overlay) { closedByUser = true; hideOverlay(); }
-    if (e.key === "D" && e.shiftKey && overlay) {
+    if (!overlay) return;
+    if (e.key === "Escape") { closedByUser = true; hideOverlay(); return; }
+    if (e.key === "D" && e.shiftKey) {
       debugVisible = !debugVisible;
       var dbg = overlay.querySelector(".aml-debug");
       if (dbg) dbg.style.display = debugVisible ? "block" : "none";
+      return;
     }
+    var target = e.target;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+    if (e.key === "[") { e.preventDefault(); bumpOffset(-0.1); }
+    else if (e.key === "]") { e.preventDefault(); bumpOffset(0.1); }
+    else if (e.key === "\\") { e.preventDefault(); bumpOffset(-userOffset); }
   });
 
   function isExtensionValid() {
