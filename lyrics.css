@@ -171,7 +171,7 @@
 
 .aml-lines-wrapper {
   will-change: transform;
-  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .aml-spacer {
@@ -188,13 +188,13 @@
   transform-origin: left center;
   will-change: color, opacity, transform, filter;
   transition:
-    font-size      0.7s cubic-bezier(0.16, 1, 0.3, 1),
-    color          0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity        0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    transform      0.7s cubic-bezier(0.16, 1, 0.3, 1),
-    text-shadow    0.6s cubic-bezier(0.16, 1, 0.3, 1),
-    filter         0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    letter-spacing 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    font-size      0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    color          0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity        0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    transform      0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    text-shadow    0.4s  cubic-bezier(0.22, 1, 0.36, 1),
+    filter         0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    letter-spacing 0.4s  cubic-bezier(0.22, 1, 0.36, 1);
   font-size: 1.45rem;
   font-weight: 550;
   line-height: 1.38;
@@ -206,14 +206,19 @@
 }
 
 .aml-visible .aml-line {
-  animation: aml-line-enter 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation: aml-line-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   animation-delay: var(--aml-d, 0s);
+}
+
+/* Cap stagger so very long songs don't have a 2s+ reveal tail. */
+.aml-visible .aml-line:nth-child(n + 22) {
+  animation-delay: 0.7s;
 }
 
 @keyframes aml-line-enter {
   from {
     opacity: 0;
-    transform: translateY(14px) scale(0.98);
+    transform: translateY(12px) scale(0.985);
     filter: blur(4px);
   }
 }
@@ -238,9 +243,23 @@
   letter-spacing: -0.025em;
   filter: blur(0px);
   text-shadow:
-    0 0 35px rgba(255, 255, 255, 0.15),
-    0 0 70px rgba(255, 255, 255, 0.06);
+    0 0 35px rgba(255, 255, 255, 0.18),
+    0 0 70px rgba(255, 255, 255, 0.08);
   transform: translateX(0px) scale(1);
+  animation: aml-active-glow 4.5s ease-in-out infinite;
+}
+
+@keyframes aml-active-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 30px rgba(255, 255, 255, 0.16),
+      0 0 60px rgba(255, 255, 255, 0.06);
+  }
+  50% {
+    text-shadow:
+      0 0 42px rgba(255, 255, 255, 0.24),
+      0 0 84px rgba(255, 255, 255, 0.10);
+  }
 }
 
 /* ── Proximity: Above ── */
@@ -248,59 +267,61 @@
 .aml-line.aml-above-1 {
   font-size: 1.65rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.45);
-  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.42);
+  opacity: 0.88;
   filter: blur(0px);
 }
 
 .aml-line.aml-above-2 {
   font-size: 1.52rem;
   font-weight: 560;
-  color: rgba(255, 255, 255, 0.25);
-  opacity: 0.75;
+  color: rgba(255, 255, 255, 0.22);
+  opacity: 0.7;
   filter: blur(0.3px);
 }
 
 .aml-line.aml-above-3 {
   font-size: 1.48rem;
   font-weight: 530;
-  color: rgba(255, 255, 255, 0.14);
-  opacity: 0.55;
-  filter: blur(0.5px);
+  color: rgba(255, 255, 255, 0.13);
+  opacity: 0.5;
+  filter: blur(0.6px);
 }
 
 .aml-line.aml-above-far {
   font-size: 1.45rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.08);
-  opacity: 0.35;
-  filter: blur(1.2px);
+  color: rgba(255, 255, 255, 0.07);
+  opacity: 0.3;
+  filter: blur(1.4px);
 }
 
 /* ── Proximity: Below ── */
 
+/* aml-below-1 is the upcoming line — subtly brighter than the equivalent above
+   to provide reading anticipation, in keeping with Apple Music's feel. */
 .aml-line.aml-below-1 {
   font-size: 1.62rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.35);
-  opacity: 0.85;
+  color: rgba(255, 255, 255, 0.40);
+  opacity: 0.9;
   filter: blur(0px);
 }
 
 .aml-line.aml-below-2 {
   font-size: 1.50rem;
   font-weight: 550;
-  color: rgba(255, 255, 255, 0.18);
-  opacity: 0.6;
-  filter: blur(0.4px);
+  color: rgba(255, 255, 255, 0.20);
+  opacity: 0.62;
+  filter: blur(0.35px);
 }
 
 .aml-line.aml-below-far {
   font-size: 1.45rem;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.08);
-  opacity: 0.35;
-  filter: blur(1.2px);
+  opacity: 0.32;
+  filter: blur(1.3px);
 }
 
 /* ── Interlude ── */
@@ -515,9 +536,10 @@
 .aml-toolbar-progress-fill {
   height: 100%;
   width: 0%;
-  background: rgba(255, 255, 255, 0.65);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.85));
   border-radius: 0 1px 1px 0;
-  transition: width 0.3s linear;
+  transition: width 0.18s linear;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
 }
 
 .aml-toolbar-inner {
