@@ -727,16 +727,20 @@
   }
 }
 
-/* ── Word Sync ── */
+/* ── Word Sync ──
+   Driven by CSS animations, not per-frame JS. JS sets two CSS variables on
+   each word when its line activates: --aml-word-dur (animation length matching
+   the word's audio duration) and --aml-word-anim-delay (a NEGATIVE value that
+   scrubs the keyframe forward to the song's actual current position). The
+   compositor then runs the keyframe in lockstep with the audio. Modeled after
+   the technique used by the Better Lyrics extension.
+*/
 
 .aml-word {
-  display: inline;
-  transition:
-    color     0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    opacity   0.18s cubic-bezier(0.16, 1, 0.3, 1),
-    filter    0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-block;
   color: inherit;
   opacity: inherit;
+  transform-origin: center 90%;
 }
 
 .aml-line.aml-active .aml-word {
@@ -745,17 +749,44 @@
   filter: blur(0px);
 }
 
-.aml-word.aml-word-active {
-  color: #ffffff !important;
-  opacity: 1 !important;
-  filter: blur(0px) !important;
-  text-shadow:
-    0 0 20px rgba(255, 255, 255, 0.30),
-    0 0 40px rgba(255, 255, 255, 0.10);
+@keyframes aml-word-fill {
+  /* Inactive — line color / dim. */
+  0% {
+    color: rgba(255, 255, 255, 0.22);
+    transform: translateY(0) scale(1);
+    text-shadow: none;
+  }
+  /* Quick fade-in to fully active (first ~18% of word duration). */
+  18% {
+    color: #ffffff;
+    transform: translateY(-1px) scale(1.018);
+    text-shadow:
+      0 0 22px rgba(255, 255, 255, 0.36),
+      0 0 44px rgba(255, 255, 255, 0.12);
+  }
+  /* Hold full activation through the body of the word. */
+  82% {
+    color: #ffffff;
+    transform: translateY(-1px) scale(1.018);
+    text-shadow:
+      0 0 22px rgba(255, 255, 255, 0.36),
+      0 0 44px rgba(255, 255, 255, 0.12);
+  }
+  /* Settle to a brighter "past" state for words already sung. */
+  100% {
+    color: rgba(255, 255, 255, 0.84);
+    transform: translateY(0) scale(1);
+    text-shadow: none;
+  }
 }
 
-.aml-word.aml-word-past {
-  color: rgba(255, 255, 255, 0.78) !important;
-  opacity: 1 !important;
-  filter: blur(0px) !important;
+.aml-word.aml-word-animating {
+  animation:
+    aml-word-fill var(--aml-word-dur, 0.5s) linear var(--aml-word-anim-delay, 0s) forwards;
+  will-change: color, transform, text-shadow;
+}
+
+/* Pause CSS animations when the player is paused. */
+.aml-overlay:not(.aml-playing) .aml-word.aml-word-animating {
+  animation-play-state: paused;
 }

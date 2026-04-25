@@ -840,31 +840,17 @@
     }
 
     if (targetLine >= 0 && targetLine !== activeIndex) {
-      setActive(targetLine);
+      setActive(targetLine, correctedTime);
     }
 
-    if (useWordSync && overlay && activeIndex >= 0) {
-      var timeMs = correctedTime * 1000;
-      var activeLine = overlay.querySelectorAll(".aml-line")[activeIndex];
-      if (activeLine) {
-        var words = activeLine.querySelectorAll(".aml-word");
-        for (var w = 0; w < words.length; w++) {
-          var ws = parseInt(words[w].dataset.startMs, 10);
-          var we = parseInt(words[w].dataset.endMs, 10);
-          if (timeMs >= ws && (we <= 0 || timeMs < we)) {
-            if (!words[w].classList.contains("aml-word-active")) {
-              words[w].classList.add("aml-word-active");
-            }
-          } else if (timeMs >= we && we > 0) {
-            words[w].classList.remove("aml-word-active");
-            if (!words[w].classList.contains("aml-word-past")) {
-              words[w].classList.add("aml-word-past");
-            }
-          } else {
-            words[w].classList.remove("aml-word-active", "aml-word-past");
-          }
-        }
-      }
+    // Word highlighting is now CSS-driven (set up in setActive). We only need
+    // to mirror the player's play/pause state so CSS can pause animations.
+    if (overlay) {
+      var shouldPlay = playerPlaying;
+      if (!shouldPlay && video && !video.paused) shouldPlay = true;
+      var hasPlayingClass = overlay.classList.contains("aml-playing");
+      if (shouldPlay && !hasPlayingClass) overlay.classList.add("aml-playing");
+      else if (!shouldPlay && hasPlayingClass) overlay.classList.remove("aml-playing");
     }
 
     if (overlay && video) {
@@ -942,11 +928,16 @@
     seekTimeout = setTimeout(function () { userSeeking = false; }, 150);
   }
 
-  function setActive(index) {
+  function setActive(index, correctedTime) {
     if (!overlay || !cachedLines) return;
     var lines = cachedLines;
     if (index < 0 || index >= lines.length) return;
     if (index === activeIndex) return;
+
+    if (correctedTime === undefined || correctedTime === null) {
+      var base = lastVisibleTime > 0 ? lastVisibleTime : playerTime;
+      correctedTime = base + userOffset;
+    }
 
     var prev = activeIndex;
     activeIndex = index;
@@ -970,7 +961,9 @@
     if (useWordSync && prev >= 0 && prev < lines.length) {
       var prevWords = lines[prev].querySelectorAll(".aml-word");
       for (var pw = 0; pw < prevWords.length; pw++) {
-        prevWords[pw].classList.remove("aml-word-active", "aml-word-past");
+        prevWords[pw].classList.remove("aml-word-animating");
+        prevWords[pw].style.removeProperty("--aml-word-dur");
+        prevWords[pw].style.removeProperty("--aml-word-anim-delay");
       }
     }
 
@@ -978,6 +971,33 @@
     var maxAffected = Math.min(lines.length - 1, Math.max(prev, index) + 3);
     for (var i = minAffected; i <= maxAffected; i++) {
       setProximityClass(lines[i], i - index);
+    }
+
+    // CSS-driven word sync: set per-word duration + negative animation-delay so
+    // each word's keyframe is scrubbed forward to where the song actually is.
+    // No per-frame JS work — CSS handles the rest on the compositor.
+    if (useWordSync && index >= 0 && index < lines.length) {
+      var newWords = lines[index].querySelectorAll(".aml-word");
+      if (newWords.length > 0) {
+        // Two-pass to guarantee animation restart on repeat (chorus): clear,
+        // single forced reflow, set vars + class. Avoids the "same class re-added
+        // doesn't restart animation" CSS quirk.
+        for (var cw = 0; cw < newWords.length; cw++) {
+          newWords[cw].classList.remove("aml-word-animating");
+        }
+        // Force a single reflow on the line so the animation restarts cleanly.
+        void lines[index].offsetHeight;
+        for (var nw = 0; nw < newWords.length; nw++) {
+          var startMs = parseInt(newWords[nw].dataset.startMs, 10);
+          var endMs = parseInt(newWords[nw].dataset.endMs, 10);
+          var durSec = (endMs > startMs) ? (endMs - startMs) / 1000 : 0.4;
+          if (durSec < 0.12) durSec = 0.12;
+          var deltaSec = correctedTime - startMs / 1000;
+          newWords[nw].style.setProperty("--aml-word-dur", durSec + "s");
+          newWords[nw].style.setProperty("--aml-word-anim-delay", (-deltaSec) + "s");
+          newWords[nw].classList.add("aml-word-animating");
+        }
+      }
     }
 
     if (!overlay) return;
@@ -1634,6 +1654,8 @@
     if (dbg && debugVisible) {
       dbg.textContent = lyricsSource + " | " + lyricsType + " | offset: " + Math.round(userOffset * 1000) + "ms";
     }
+    // Reset so the next sync frame re-activates the line and re-scrubs CSS word animations.
+    activeIndex = -1;
     lastSearchHint = 0;
   }
 
