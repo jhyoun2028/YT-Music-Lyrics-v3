@@ -286,9 +286,15 @@
       var se = spans[s].getAttribute("end") || spans[s].getAttribute("d");
       var st = (spans[s].textContent || "");
       if (sb && st) {
+        // Apple Music TTML separates words with whitespace TEXT NODES between
+        // sibling spans. Syllables within a word have no such gap. Detect and
+        // preserve the inter-word space so rendering doesn't run words together.
+        var trail = "";
+        var sib = spans[s].nextSibling;
+        if (sib && sib.nodeType === 3 && /^\s/.test(sib.nodeValue || "")) trail = " ";
         var startSec = divOffset + parseTTMLTime(sb);
         var endSec = se ? divOffset + parseTTMLTime(se) : 0;
-        words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: st });
+        words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: st + trail });
       }
     }
     return words.length > 0 ? words : null;
