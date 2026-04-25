@@ -157,6 +157,54 @@
     return result;
   }
 
+  // Binimum — Apple Music's TTML lyrics database (word/syllable timing).
+  // Same source Better Lyrics treats as primary. Returns Apple Music TTML
+  // (itunes:timing="Word") with absolute <p begin> and <span begin> times.
+  var BINIMUM_API = "https://lyrics-api.binimum.org/";
+
+  function binimumFetchLyrics(title, artist, duration) {
+    if (!title) return Promise.resolve(null);
+    var qs = "?track=" + encodeURIComponent(title) +
+             "&artist=" + encodeURIComponent(artist || "");
+    if (duration > 0 && !isNaN(duration)) qs += "&duration=" + Math.round(duration);
+    var searchUrl = BINIMUM_API + qs;
+    return fetch(searchUrl).then(function (r) {
+      if (!r.ok) return null;
+      return r.json();
+    }).then(function (data) {
+      if (!data || !data.results || !data.results.length) return null;
+      // Prefer word-level results, then closest duration match.
+      var results = data.results.slice();
+      results.sort(function (a, b) {
+        var ta = a.timing_type === "word" ? 0 : 1;
+        var tb = b.timing_type === "word" ? 0 : 1;
+        if (ta !== tb) return ta - tb;
+        if (duration > 0) {
+          var da = Math.abs((a.duration || 0) - duration);
+          var db = Math.abs((b.duration || 0) - duration);
+          return da - db;
+        }
+        return 0;
+      });
+      var pick = results[0];
+      if (!pick || !pick.lyricsUrl) return null;
+      if (duration > 0 && pick.duration && Math.abs(pick.duration - duration) > MAX_DURATION_DIFF) return null;
+      return fetch(pick.lyricsUrl).then(function (r) {
+        if (!r.ok) return null;
+        return r.text();
+      }).then(function (ttml) {
+        if (!ttml) return null;
+        var parsed = parseTTML(ttml);
+        if (!parsed || parsed.length < 2) return null;
+        var hasWords = false;
+        for (var i = 0; i < parsed.length; i++) {
+          if (parsed[i].words && parsed[i].words.length > 0) { hasWords = true; break; }
+        }
+        return { parsed: parsed, hasWords: hasWords };
+      });
+    }).catch(function () { return null; });
+  }
+
   var CUBEY_API = "https://lyrics.api.dacubeking.com/";
 
   function cubeyTurnstile() {
@@ -1497,7 +1545,25 @@
         });
       }
 
-      fallbackToMxmThenRest();
+      // Binimum (Apple Music TTML) is the primary source — same one Better
+      // Lyrics treats as #1. Word-level timing on most major-label tracks.
+      function fallbackToBinimumThenRest() {
+        if (isStale()) return;
+        binimumFetchLyrics(song.title, song.artist, duration).then(function (result) {
+          if (isStale()) return;
+          if (result && result.parsed && result.parsed.length >= 2) {
+            lyricsSource = "binimum";
+            lyricsType = result.hasWords ? "word" : "line";
+            showWithSyncedLyrics(result.parsed);
+          } else {
+            fallbackToMxmThenRest();
+          }
+        }).catch(function () {
+          if (!isStale()) fallbackToMxmThenRest();
+        });
+      }
+
+      fallbackToBinimumThenRest();
     } else {
       showNoLyrics();
     }

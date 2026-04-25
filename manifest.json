@@ -8,7 +8,9 @@
     "*://music.youtube.com/*",
     "https://lrclib.net/*",
     "https://apic-desktop.musixmatch.com/*",
-    "https://lyrics.api.dacubeking.com/*"
+    "https://lyrics.api.dacubeking.com/*",
+    "https://lyrics-api.binimum.org/*",
+    "https://lyrics-storage.binimum.org/*"
   ],
   "action": {
     "default_popup": "popup.html",
