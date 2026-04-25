@@ -301,9 +301,26 @@
       var hasWords = false;
       var divEls = doc.querySelectorAll("div");
       if (divEls.length > 0) {
+        // First pass: detect whether <p begin> values are absolute or relative to <div begin>.
+        // Apple Music TTML uses absolute <p begin>; some older formats use relative. Heuristic:
+        // if any <p begin> is >= its enclosing <div begin>, times are absolute for the whole doc.
+        var timesAreAbsolute = false;
+        for (var dd = 0; dd < divEls.length && !timesAreAbsolute; dd++) {
+          var db = divEls[dd].getAttribute("begin") || divEls[dd].getAttribute("t");
+          var dbSec = db ? parseTTMLTime(db) : 0;
+          if (dbSec <= 0) continue;
+          var probe = divEls[dd].querySelectorAll(":scope > p");
+          if (probe.length === 0) probe = divEls[dd].querySelectorAll("p");
+          for (var pp = 0; pp < probe.length; pp++) {
+            var pb = probe[pp].getAttribute("begin") || probe[pp].getAttribute("t");
+            if (!pb) continue;
+            if (parseTTMLTime(pb) >= dbSec - 0.001) { timesAreAbsolute = true; break; }
+          }
+        }
         for (var d = 0; d < divEls.length; d++) {
           var divBegin = divEls[d].getAttribute("begin") || divEls[d].getAttribute("t");
           var divOffset = divBegin ? parseTTMLTime(divBegin) : 0;
+          var effectiveOffset = timesAreAbsolute ? 0 : divOffset;
           var pEls = divEls[d].querySelectorAll(":scope > p");
           if (pEls.length === 0) pEls = divEls[d].querySelectorAll("p");
           for (var i = 0; i < pEls.length; i++) {
@@ -311,8 +328,8 @@
             var text = (pEls[i].textContent || "").trim();
             if (begin && text) {
               var pTime = parseTTMLTime(begin);
-              var entry = { time: divOffset + pTime, text: text };
-              var words = parseTTMLWords(pEls[i], divOffset);
+              var entry = { time: effectiveOffset + pTime, text: text };
+              var words = parseTTMLWords(pEls[i], effectiveOffset);
               if (words) { entry.words = words; hasWords = true; }
               result.push(entry);
             }
