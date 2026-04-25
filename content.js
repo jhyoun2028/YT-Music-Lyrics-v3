@@ -722,13 +722,26 @@
   var playerTime = 0;
   var playerPlaying = false;
   var playerVideoId = "";
+  // Tick was generated at this Date.now() in the MAIN-world bridge. We use it to
+  // (a) add back the latency between tick generation and our processing, and
+  // (b) detect time jumps by comparing wall-clock delta vs song-time delta.
+  var playerBrowserTime = 0;
+  var lastTickPlayerTime = -1;
+  var lastTickBrowserTime = 0;
 
   window.addEventListener("message", function (e) {
     if (!e.data || e.data.type !== "aml-player-tick") return;
     playerTime = e.data.currentTime;
     playerPlaying = e.data.playing;
+    playerBrowserTime = e.data.browserTime || Date.now();
     if (e.data.videoId) playerVideoId = e.data.videoId;
   });
+
+  // Detect a time jump (seek, song change) by comparing the song-time delta
+  // since the last tick to the wall-clock delta. If they diverge by more than
+  // TIME_JUMP_THRESHOLD seconds, the player jumped (rather than continuously
+  // advancing). Modeled after Better Lyrics' approach.
+  var TIME_JUMP_THRESHOLD = 0.5;
 
   function startSync() {
     if (syncActive) return;
@@ -737,19 +750,44 @@
     lastVisibleTime = 0;
     lastSyncLog = 0;
     lastSearchHint = 0;
+    lastTickPlayerTime = -1;
+    lastTickBrowserTime = 0;
 
     function syncFrame() {
       if (!syncActive || !overlay) return;
-      var t = playerTime;
-      if (!(t > 0)) {
+      var rawTime = playerTime;
+      var browserNow = Date.now();
+      var sourceBrowserTime = playerBrowserTime;
+      var sourceFromBridge = rawTime > 0 && sourceBrowserTime > 0;
+      if (!(rawTime > 0)) {
         var vid = getVideo();
-        if (vid && vid.currentTime > 0) t = vid.currentTime;
-      }
-      if (t > 0) {
-        if (lastVisibleTime > 0 && Math.abs(t - lastVisibleTime) > 1) {
-          activeIndex = -1;
-          lastSearchHint = 0;
+        if (vid && vid.currentTime > 0) {
+          rawTime = vid.currentTime;
+          sourceBrowserTime = browserNow;
+          sourceFromBridge = false;
         }
+      }
+      if (rawTime > 0) {
+        // Latency correction: tick was created at sourceBrowserTime. By the time
+        // we run this RAF callback, browserNow - sourceBrowserTime ms have passed.
+        // While playing, song time has advanced by that much too; add it back.
+        var t = rawTime;
+        if (sourceFromBridge && playerPlaying) {
+          var ageMs = browserNow - sourceBrowserTime;
+          if (ageMs > 0 && ageMs < 1000) t += ageMs / 1000;
+        }
+
+        // Event-timestamp jump detection — robust across pause/buffer wobble.
+        if (lastTickPlayerTime >= 0 && lastTickBrowserTime > 0 && playerPlaying) {
+          var songDelta = rawTime - lastTickPlayerTime;
+          var wallDelta = (sourceBrowserTime - lastTickBrowserTime) / 1000;
+          if (wallDelta > 0.05 && Math.abs(songDelta - wallDelta) > TIME_JUMP_THRESHOLD) {
+            activeIndex = -1;
+            lastSearchHint = 0;
+          }
+        }
+        lastTickPlayerTime = rawTime;
+        lastTickBrowserTime = sourceBrowserTime;
         lastVisibleTime = t;
         processSync(t);
       }

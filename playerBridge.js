@@ -41,7 +41,8 @@ function startTick() {
         song: data.title,
         artist: data.author,
         duration: duration,
-        playing: playing
+        playing: playing,
+        browserTime: now
       }, "*");
     } catch (e) { }
   }, 20);
