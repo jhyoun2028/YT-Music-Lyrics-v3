@@ -9,6 +9,7 @@
   var lyricsTabClicked = false;
   var songObserver = null;
   var panelObserver = null;
+  var urlObserver = null;
   var closedByUser = false;
   var syncActive = false;
   var userSeeking = false;
@@ -75,25 +76,37 @@
     };
   }
 
-  function clickLyricsTab() {
-    var sels = [
-      "ytmusic-player-page tp-yt-paper-tab",
-      "tp-yt-paper-tab.tab-header",
-      "#tabsContent tp-yt-paper-tab",
-      "tp-yt-paper-tab",
-    ];
-    var tabs = [];
-    for (var c = 0; c < sels.length; c++) {
-      tabs = document.querySelectorAll(sels[c]);
-      if (tabs.length > 0) break;
+  // Shared across clickLyricsTab / findLyricsTab \u2014 kept in one place so a YTM
+  // markup change is a single-point fix.
+  var LYRICS_TAB_SELECTORS = [
+    "ytmusic-player-page tp-yt-paper-tab",
+    "tp-yt-paper-tab.tab-header",
+    "#tabsContent tp-yt-paper-tab",
+    "tp-yt-paper-tab",
+  ];
+  var LYRICS_TAB_KEYWORDS = ["lyrics", "lyric", "\uac00\uc0ac", "\u6b4c\u8a5e", "letras", "paroles", "testo"];
+
+  function queryLyricsTabs() {
+    for (var c = 0; c < LYRICS_TAB_SELECTORS.length; c++) {
+      var tabs = document.querySelectorAll(LYRICS_TAB_SELECTORS[c]);
+      if (tabs.length > 0) return tabs;
     }
+    return [];
+  }
+
+  function tabMatchesLyrics(tab) {
+    var text = tab.textContent.trim().toLowerCase();
+    for (var k = 0; k < LYRICS_TAB_KEYWORDS.length; k++) {
+      if (text.indexOf(LYRICS_TAB_KEYWORDS[k]) !== -1) return true;
+    }
+    return false;
+  }
+
+  function clickLyricsTab() {
+    var tabs = queryLyricsTabs();
     if (tabs.length === 0) return false;
-    var kw = ["lyrics", "lyric", "\uac00\uc0ac", "\u6b4c\u8a5e", "letras", "paroles", "testo"];
     for (var t = 0; t < tabs.length; t++) {
-      var text = tabs[t].textContent.trim().toLowerCase();
-      for (var k = 0; k < kw.length; k++) {
-        if (text.indexOf(kw[k]) !== -1) { tabs[t].click(); lyricsTabClicked = true; return true; }
-      }
+      if (tabMatchesLyrics(tabs[t])) { tabs[t].click(); lyricsTabClicked = true; return true; }
     }
     if (tabs.length >= 2) { tabs[1].click(); lyricsTabClicked = true; return true; }
     return false;
@@ -1664,29 +1677,17 @@
       });
     }
     var lastUrl = location.href;
-    new MutationObserver(function () {
+    if (urlObserver) urlObserver.disconnect();
+    urlObserver = new MutationObserver(function () {
       if (location.href !== lastUrl) { lastUrl = location.href; setTimeout(onSongChange, 100); }
-    }).observe(document.body, { childList: true, subtree: true });
+    });
+    urlObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   function findLyricsTab() {
-    var sels = [
-      "ytmusic-player-page tp-yt-paper-tab",
-      "tp-yt-paper-tab.tab-header",
-      "#tabsContent tp-yt-paper-tab",
-      "tp-yt-paper-tab",
-    ];
-    var tabs = [];
-    for (var c = 0; c < sels.length; c++) {
-      tabs = document.querySelectorAll(sels[c]);
-      if (tabs.length > 0) break;
-    }
-    var kw = ["lyrics", "lyric", "\uac00\uc0ac", "\u6b4c\u8a5e", "letras", "paroles", "testo"];
+    var tabs = queryLyricsTabs();
     for (var t = 0; t < tabs.length; t++) {
-      var text = tabs[t].textContent.trim().toLowerCase();
-      for (var k = 0; k < kw.length; k++) {
-        if (text.indexOf(kw[k]) !== -1) return tabs[t];
-      }
+      if (tabMatchesLyrics(tabs[t])) return tabs[t];
     }
     return null;
   }
