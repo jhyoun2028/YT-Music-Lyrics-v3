@@ -639,126 +639,6 @@
     return nextGet();
   }
 
-  function spotifyGetToken(forceRefresh) {
-    return new Promise(function (resolve) {
-      try {
-        chrome.runtime.sendMessage(
-          { type: "SPOTIFY_GET_TOKEN", forceRefresh: !!forceRefresh },
-          function (resp) {
-            if (chrome.runtime.lastError) { resolve(null); return; }
-            resolve(resp && resp.token ? resp.token : null);
-          }
-        );
-      } catch (e) { resolve(null); }
-    });
-  }
-
-  function normalizeTitle(t) {
-    return t.replace(/\(feat\..*?\)/gi, "")
-            .replace(/\(ft\..*?\)/gi, "")
-            .replace(/\(.*?remaster.*?\)/gi, "")
-            .replace(/\(.*?remix.*?\)/gi, "")
-            .replace(/\(.*?version.*?\)/gi, "")
-            .replace(/\(.*?live.*?\)/gi, "")
-            .trim();
-  }
-
-  function buildSearchQueries(title, artist) {
-    var t = title.trim();
-    var a = artist.trim();
-    var norm = normalizeTitle(t);
-    var stripped = t.split("(")[0].trim();
-    var dashed = t.split("-")[0].trim();
-    var queries = [];
-    queries.push("track:" + t + " artist:" + a);
-    queries.push(t + " " + a);
-    if (norm !== t) queries.push(norm + " " + a);
-    if (stripped !== t && stripped !== norm) queries.push(stripped + " " + a);
-    if (dashed !== t && dashed !== stripped) queries.push(dashed + " " + a);
-    queries.push(t);
-    return queries;
-  }
-
-  function spotifySearchTrack(title, artist, token) {
-    var queries = buildSearchQueries(title, artist);
-    var idx = 0;
-
-    function tryNext() {
-      if (idx >= queries.length) return Promise.resolve(null);
-      var q = queries[idx++];
-      var url = "https://api.spotify.com/v1/search?q=" + encodeURIComponent(q) + "&type=track&limit=1";
-      return fetch(url, {
-        headers: { "Authorization": "Bearer " + token }
-      }).then(function (r) {
-        if (!r.ok) return null;
-        return r.json();
-      }).then(function (data) {
-        var items = data && data.tracks && data.tracks.items;
-        if (items && items.length) return items[0].id;
-        return tryNext();
-      });
-    }
-
-    return tryNext().catch(function () { return null; });
-  }
-
-  function spotifyFetchColorLyrics(trackId, token) {
-    var url = "https://spclient.wg.spotify.com/color-lyrics/v2/track/" + trackId +
-      "?format=json&vocalRemoval=false&market=from_token";
-    return fetch(url, {
-      headers: {
-        "Authorization": "Bearer " + token,
-        "App-Platform": "WebPlayer"
-      }
-    }).then(function (r) {
-      if (!r.ok) return null;
-      return r.json();
-    }).catch(function () { return null; });
-  }
-
-  function spotifyFetchLyrics(title, artist, duration) {
-    return spotifyGetToken(false).then(function (token) {
-      if (!token) return null;
-      return spotifySearchTrack(title, artist, token).then(function (trackId) {
-        if (!trackId) return null;
-        return spotifyFetchColorLyrics(trackId, token);
-      });
-    }).catch(function () { return null; });
-  }
-
-  function parseSpotifyLyrics(data) {
-    if (!data || !data.lyrics || !data.lyrics.lines) return null;
-    var lyrics = data.lyrics;
-    var lines = lyrics.lines;
-    if (lines.length < 2) return null;
-
-    var isSyllable = lyrics.syncType === "SYLLABLE_SYNCED";
-    var parsed = [];
-    var syllableData = [];
-
-    for (var i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      var timeS = parseInt(line.startTimeMs, 10) / 1000;
-      var text = line.words || "";
-      if (text === "\u266a" || text === "") text = "";
-      parsed.push({ time: timeS, text: text });
-
-      if (isSyllable && line.syllables && line.syllables.length > 0) {
-        var syls = [];
-        for (var s = 0; s < line.syllables.length; s++) {
-          syls.push({
-            startMs: parseInt(line.syllables[s].startTimeMs, 10),
-            endMs: parseInt(line.syllables[s].endTimeMs || "0", 10),
-            text: line.syllables[s].words || ""
-          });
-        }
-        syllableData.push({ lineIndex: i, syllables: syls });
-      }
-    }
-
-    return { parsed: parsed, syllableData: syllableData, isSyllable: isSyllable };
-  }
-
   function getVideoId() {
     if (playerVideoId) return playerVideoId;
     try {
@@ -1392,35 +1272,22 @@
     return result;
   }
 
-  function showWithSpotifyLyrics(spData) {
-    var result = parseSpotifyLyrics(spData);
-    if (!result || !result.parsed || result.parsed.length < 2) { return false; }
-    useTimedSync = true;
-    useWordSync = result.isSyllable;
-    wordData = result.syllableData || [];
-    lyricsSource = "spotify";
-    lyricsType = result.isSyllable ? "word" : "line";
-    currentVideoId = getVideoId();
-    userOffset = loadSongOffset(currentVideoId);
-    var withInterludes = insertInterludes(result.parsed);
-    timedData = withInterludes;
-    if (useWordSync) {
-      for (var adj = 0; adj < wordData.length; adj++) {
-        var offset = 0;
-        for (var k = 0; k < withInterludes.length; k++) {
-          if (k <= wordData[adj].lineIndex) {
-            if (withInterludes[k].interlude) offset++;
-          }
-        }
-        wordData[adj].lineIndex = wordData[adj].lineIndex + offset;
-      }
+  // Remap each wordData entry's lineIndex from the original parsed-array index
+  // space into its position within the interlude-expanded array. The k-th
+  // non-interlude entry in withInterludes is original line k, so we build a
+  // direct origIndex -> newIndex map. (A naive "count interludes where
+  // withInterludesIndex <= lineIndex" loop undercounts once 2+ interludes
+  // precede a line, mis-aligning word highlighting.)
+  function remapWordDataIndices(wordData, withInterludes) {
+    var origToNew = [];
+    var origCount = 0;
+    for (var k = 0; k < withInterludes.length; k++) {
+      if (!withInterludes[k].interlude) { origToNew[origCount] = k; origCount++; }
     }
-    var lines = [];
-    for (var i = 0; i < withInterludes.length; i++) {
-      lines.push(withInterludes[i].text);
+    for (var adj = 0; adj < wordData.length; adj++) {
+      var mapped = origToNew[wordData[adj].lineIndex];
+      if (mapped !== undefined) wordData[adj].lineIndex = mapped;
     }
-    buildOverlay(lines, withInterludes);
-    return true;
   }
 
   function showWithSyncedLyrics(parsed) {
@@ -1441,17 +1308,7 @@
     var withInterludes = insertInterludes(parsed);
     timedData = withInterludes;
 
-    if (useWordSync) {
-      for (var adj = 0; adj < wordData.length; adj++) {
-        var offset = 0;
-        for (var k = 0; k < withInterludes.length; k++) {
-          if (k <= wordData[adj].lineIndex) {
-            if (withInterludes[k].interlude) offset++;
-          }
-        }
-        wordData[adj].lineIndex = wordData[adj].lineIndex + offset;
-      }
-    }
+    if (useWordSync) remapWordDataIndices(wordData, withInterludes);
 
     nonEmptyIndices = [];
     var lines = [];
