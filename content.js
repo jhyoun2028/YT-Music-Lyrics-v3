@@ -200,6 +200,13 @@
       });
       var pick = results[0];
       if (!pick || !pick.lyricsUrl) return null;
+      // Only follow lyricsUrl if it points at a known Binimum host (the same
+      // origins declared in host_permissions) — don't fetch arbitrary URLs the
+      // API hands us.
+      try {
+        var lyHost = new URL(pick.lyricsUrl, BINIMUM_API).hostname;
+        if (lyHost !== "lyrics-storage.binimum.org" && lyHost !== "lyrics-api.binimum.org") return null;
+      } catch (e) { return null; }
       if (duration > 0 && pick.duration && Math.abs(pick.duration - duration) > MAX_DURATION_DIFF) return null;
       return fetch(pick.lyricsUrl).then(function (r) {
         if (!r.ok) return null;
@@ -242,39 +249,50 @@
     });
   }
 
-  function cubeyGetJWT(forceNew) {
-    if (!forceNew) {
-      try {
-        var stored = localStorage.getItem("aml_cubey_jwt");
-        if (stored) {
-          var parts = stored.split(".");
-          if (parts[1]) {
-            var payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-            if (payload.exp && Date.now() / 1000 < payload.exp) {
-              return Promise.resolve(stored);
-            }
-          }
-        }
-      } catch (e) { }
-    }
+  var CUBEY_JWT_KEY = "aml_cubey_jwt";
 
-    return cubeyTurnstile().then(function (token) {
-      return fetch(CUBEY_API + "verify-turnstile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: token }),
-        credentials: "include"
+  // JWT lives in chrome.storage.local (extension-only) rather than localStorage,
+  // which any MAIN-world page script could read.
+  function cubeyGetJWT(forceNew) {
+    return new Promise(function (resolve) {
+      if (forceNew || !isExtensionValid()) { resolve(null); return; }
+      chrome.storage.local.get([CUBEY_JWT_KEY], function (res) {
+        if (chrome.runtime.lastError) { resolve(null); return; }
+        var stored = res[CUBEY_JWT_KEY];
+        if (stored) {
+          try {
+            var parts = stored.split(".");
+            if (parts[1]) {
+              var payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+              if (payload.exp && Date.now() / 1000 < payload.exp) { resolve(stored); return; }
+            }
+          } catch (e) { }
+        }
+        resolve(null);
       });
-    }).then(function (r) {
-      if (!r.ok) return null;
-      return r.json();
-    }).then(function (data) {
-      if (data && data.jwt) {
-        localStorage.setItem("aml_cubey_jwt", data.jwt);
-        return data.jwt;
-      }
-      return null;
-    }).catch(function () { return null; });
+    }).then(function (cached) {
+      if (cached) return cached;
+      return cubeyTurnstile().then(function (token) {
+        return fetch(CUBEY_API + "verify-turnstile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: token }),
+          credentials: "include"
+        });
+      }).then(function (r) {
+        if (!r.ok) return null;
+        return r.json();
+      }).then(function (data) {
+        if (data && data.jwt) {
+          if (isExtensionValid()) {
+            var save = {}; save[CUBEY_JWT_KEY] = data.jwt;
+            chrome.storage.local.set(save);
+          }
+          return data.jwt;
+        }
+        return null;
+      }).catch(function () { return null; });
+    });
   }
 
   function cubeyFetchLyrics(title, artist, duration, videoId) {
@@ -296,17 +314,22 @@
         }).then(function (r) {
           if (debugVisible) console.log("[AML] Cubey response:", r.status);
           if (r.status === 403) {
+            // Token expired/rejected — refresh and retry. The JWT travels in the
+            // Authorization header (not the URL), so reuse the same url and parse
+            // the retried response as JSON like the success path below.
             return cubeyGetJWT(true).then(function (newJwt) {
               if (!newJwt) return null;
-              return fetch(url.replace(token, newJwt), {
+              return fetch(url, {
                 headers: { "Authorization": "Bearer " + newJwt },
                 credentials: "include"
+              }).then(function (r2) {
+                return r2.ok ? r2.json() : null;
               });
             });
           }
           if (!r.ok) {
             return r.text().then(function (body) {
-              console.warn("[AML] Cubey API error:", r.status, body);
+              if (debugVisible) console.warn("[AML] Cubey API error:", r.status, body);
               return null;
             });
           }
@@ -315,7 +338,7 @@
       }
 
       return doFetch(jwt);
-    }).catch(function (e) { console.warn("[AML] Cubey failed:", e); return null; });
+    }).catch(function (e) { if (debugVisible) console.warn("[AML] Cubey failed:", e); return null; });
   }
 
   function parseTTMLTime(str) {
