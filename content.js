@@ -697,6 +697,10 @@
   var lastTickBrowserTime = 0;
 
   window.addEventListener("message", function (e) {
+    // Only trust ticks from our own page context (the MAIN-world bridge), not
+    // from embedded iframes (ads, third-party embeds) that could spoof the clock.
+    if (e.origin !== location.origin) return;
+    if (e.source !== window) return;
     if (!e.data || e.data.type !== "aml-player-tick") return;
     playerTime = e.data.currentTime;
     playerPlaying = e.data.playing;
@@ -891,7 +895,7 @@
     }
 
     if (seekTime >= 0) {
-      window.postMessage({ type: "aml-seek-to", time: seekTime }, "*");
+      window.postMessage({ type: "aml-seek-to", time: seekTime }, location.origin);
     }
 
     activeIndex = -1;
