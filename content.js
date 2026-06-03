@@ -867,12 +867,29 @@
     }
   }
 
+  // The <video> element persists across songs (YTM is an SPA), so play/pause
+  // listeners would accumulate on every overlay rebuild. Track and remove them.
+  var boundVideoEl = null;
+  var boundVideoHandler = null;
+
+  function cleanupVideoEvents() {
+    if (boundVideoEl && boundVideoHandler) {
+      boundVideoEl.removeEventListener("play", boundVideoHandler);
+      boundVideoEl.removeEventListener("pause", boundVideoHandler);
+    }
+    boundVideoEl = null;
+    boundVideoHandler = null;
+  }
+
   function bindToolbarVideoEvents(playBtn) {
+    cleanupVideoEvents();
     var video = getVideo();
     if (!video || !playBtn) return;
     function updatePlayState() {
       playBtn.textContent = video.paused ? "\u25b6" : "\u23f8";
     }
+    boundVideoEl = video;
+    boundVideoHandler = updatePlayState;
     video.addEventListener("play", updatePlayState);
     video.addEventListener("pause", updatePlayState);
     updatePlayState();
@@ -1267,6 +1284,7 @@
 
   function hideOverlay() {
     stopSync();
+    cleanupVideoEvents();
     if (!overlay) return;
     overlay.classList.remove("aml-visible");
     var el = overlay;
@@ -1276,6 +1294,7 @@
 
   function removeOverlay() {
     stopSync();
+    cleanupVideoEvents();
     cachedLineOffsets = null;
     cachedContentHeight = 0;
     cachedLines = null;
