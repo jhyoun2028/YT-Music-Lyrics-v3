@@ -658,7 +658,7 @@
         .then(function (r) {
           if (r.status === 401) return { __mxmUnauthorized: true };
           if (!r.ok) {
-            console.warn("Musixmatch lyrics request failed", r.status);
+            if (debugVisible) console.warn("[AML] Musixmatch lyrics request failed", r.status);
             return null;
           }
           return r.json();
@@ -668,7 +668,7 @@
             if (!forceTokenRefresh) {
               return mxmFetchForArtist(title, artist, duration, true);
             }
-            console.warn("Musixmatch token refresh failed after 401");
+            if (debugVisible) console.warn("[AML] Musixmatch token refresh failed after 401");
             return null;
           }
 
@@ -680,7 +680,7 @@
           return null;
         })
         .catch(function (err) {
-          console.warn("Musixmatch lyrics fetch error", err);
+          if (debugVisible) console.warn("[AML] Musixmatch lyrics fetch error", err);
           return null;
         });
     });
@@ -1759,7 +1759,8 @@
     if (!isExtensionValid()) return;
     if (msg.type === "AML_TOGGLE") {
       enabled = msg.enabled;
-      chrome.storage.local.set({ [STATE_KEY]: enabled });
+      var toggleSave = {}; toggleSave[STATE_KEY] = enabled;
+      chrome.storage.local.set(toggleSave);
       if (enabled) { closedByUser = false; tryShowLyrics(); } else { hideOverlay(); }
       sendResponse({ ok: true });
     }
