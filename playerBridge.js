@@ -43,18 +43,30 @@ function startTick() {
         duration: duration,
         playing: playing,
         browserTime: now
-      }, "*");
+      }, location.origin);
     } catch (e) { }
   }, 20);
 }
 
+function stopTick() {
+  if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+}
+
 window.addEventListener("message", function (e) {
+  // Only honor seek requests from our own page context, not embedded iframes.
+  if (e.origin !== location.origin || e.source !== window) return;
   if (!e.data || e.data.type !== "aml-seek-to") return;
   var player = document.getElementById("movie_player");
   if (player && e.data.time >= 0) {
     player.seekTo(e.data.time, true);
     player.playVideo();
   }
+});
+
+// Don't burn 50 ticks/sec while the tab is hidden.
+document.addEventListener("visibilitychange", function () {
+  if (document.hidden) stopTick();
+  else startTick();
 });
 
 startTick();
