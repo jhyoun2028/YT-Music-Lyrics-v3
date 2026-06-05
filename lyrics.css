@@ -20,6 +20,21 @@
                "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Accent is an "R, G, B" triplet sampled from the album art at runtime;
+     falls back to white so everything still works if sampling is unavailable. */
+  --aml-accent: 255, 255, 255;
+}
+
+/* Subtle film grain over the whole overlay — kills gradient banding from the
+   heavy background blur and adds a tactile, analog richness. */
+.aml-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .aml-overlay.aml-visible {
@@ -237,28 +252,28 @@
 
 .aml-line.aml-active {
   font-size: 2.05rem;
-  font-weight: 700;
+  font-weight: 800;
   color: #ffffff;
   opacity: 1;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
   filter: blur(0px);
   text-shadow:
-    0 0 35px rgba(255, 255, 255, 0.18),
-    0 0 70px rgba(255, 255, 255, 0.08);
+    0 0 35px rgba(var(--aml-accent), 0.22),
+    0 0 70px rgba(var(--aml-accent), 0.10);
   transform: translateX(0px) scale(1);
-  animation: aml-active-glow 4.5s ease-in-out infinite;
+  animation: aml-active-glow 6s ease-in-out infinite;
 }
 
 @keyframes aml-active-glow {
   0%, 100% {
     text-shadow:
-      0 0 30px rgba(255, 255, 255, 0.16),
-      0 0 60px rgba(255, 255, 255, 0.06);
+      0 0 30px rgba(var(--aml-accent), 0.18),
+      0 0 60px rgba(var(--aml-accent), 0.07);
   }
   50% {
     text-shadow:
-      0 0 42px rgba(255, 255, 255, 0.24),
-      0 0 84px rgba(255, 255, 255, 0.10);
+      0 0 44px rgba(var(--aml-accent), 0.30),
+      0 0 88px rgba(var(--aml-accent), 0.13);
   }
 }
 
@@ -523,6 +538,39 @@
   pointer-events: none;
 }
 
+/* ── Keyboard hint (auto-fades shortly after the overlay opens) ── */
+
+.aml-hint {
+  position: absolute;
+  bottom: 78px;
+  left: 22px;
+  z-index: 4;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(0, 0, 0, 0.40);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+  opacity: 0;
+  animation: aml-hint-flash 5.5s ease-in-out 0.8s 1 forwards;
+}
+
+.aml-hint kbd {
+  font-family: inherit;
+  font-weight: 650;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+@keyframes aml-hint-flash {
+  0%   { opacity: 0; transform: translateY(6px); }
+  12%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
+
 /* ── Toolbar ── */
 
 .aml-toolbar {
@@ -551,10 +599,10 @@
 .aml-toolbar-progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.85));
+  background: linear-gradient(90deg, rgba(var(--aml-accent), 0.65), rgba(var(--aml-accent), 0.95));
   border-radius: 0 1px 1px 0;
   transition: width 0.18s linear;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 12px rgba(var(--aml-accent), 0.35);
 }
 
 .aml-toolbar-inner {
@@ -804,4 +852,26 @@
 /* Pause CSS animations when the player is paused. */
 .aml-overlay:not(.aml-playing) .aml-word.aml-word-animating {
   animation-play-state: paused;
+}
+
+/* ═══════════════════════════════════════════
+   Reduced motion — silence the ambient/decorative loops (breathing background,
+   floating art, glow pulse, interlude shimmer, entrance stagger). Functional
+   motion (line scroll, word fill that conveys timing) is kept.
+   ═══════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .aml-bg-tint,
+  .aml-bg-tint::after,
+  .aml-album-art,
+  .aml-line.aml-active,
+  .aml-line.aml-interlude::before,
+  .aml-line.aml-interlude.aml-active::before,
+  .aml-visible .aml-line {
+    animation: none !important;
+  }
+
+  .aml-hint {
+    transform: none !important;
+  }
 }
