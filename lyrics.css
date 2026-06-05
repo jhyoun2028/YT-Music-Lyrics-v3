@@ -49,7 +49,7 @@
   inset: -140px;
   background-size: cover;
   background-position: center;
-  filter: blur(120px) brightness(0.18) saturate(2.2);
+  filter: blur(120px) brightness(0.24) saturate(2.3);
   opacity: 0.9;
   z-index: 0;
   pointer-events: none;
@@ -71,8 +71,8 @@
 }
 
 @keyframes aml-bg-breathe {
-  0%, 100% { filter: blur(120px) brightness(0.18) saturate(2.2); transform: scale(1); }
-  50%      { filter: blur(125px) brightness(0.21) saturate(2.5); transform: scale(1.01); }
+  0%, 100% { filter: blur(120px) brightness(0.24) saturate(2.3); transform: scale(1); }
+  50%      { filter: blur(125px) brightness(0.27) saturate(2.6); transform: scale(1.01); }
 }
 
 @keyframes aml-gradient-shift {
@@ -112,7 +112,8 @@
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.6),
     0 6px 24px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition:
     transform  0.5s cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);
@@ -187,6 +188,8 @@
 .aml-lines-wrapper {
   will-change: transform;
   transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  /* Cap the reading measure so lines stay comfortable on wide/ultrawide screens. */
+  max-width: 46rem;
 }
 
 .aml-spacer {
@@ -212,12 +215,12 @@
     letter-spacing 0.4s  cubic-bezier(0.22, 1, 0.36, 1);
   font-size: 1.45rem;
   font-weight: 550;
-  line-height: 1.38;
-  color: rgba(255, 255, 255, 0.08);
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.20);
   letter-spacing: -0.01em;
   text-shadow: none;
   transform: translateY(0) scale(1);
-  filter: blur(0.6px);
+  filter: blur(0.5px);
 }
 
 .aml-visible .aml-line {
@@ -239,8 +242,9 @@
 }
 
 .aml-line:hover {
-  color: rgba(255, 255, 255, 0.30);
+  color: rgba(255, 255, 255, 0.55);
   filter: blur(0px);
+  transform: translateX(4px) scale(1);
 }
 
 .aml-line.aml-empty {
@@ -282,33 +286,33 @@
 .aml-line.aml-above-1 {
   font-size: 1.65rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.42);
-  opacity: 0.88;
+  color: rgba(255, 255, 255, 0.50);
+  opacity: 0.9;
   filter: blur(0px);
 }
 
 .aml-line.aml-above-2 {
   font-size: 1.52rem;
   font-weight: 560;
-  color: rgba(255, 255, 255, 0.22);
-  opacity: 0.7;
+  color: rgba(255, 255, 255, 0.34);
+  opacity: 0.78;
   filter: blur(0.3px);
 }
 
 .aml-line.aml-above-3 {
   font-size: 1.48rem;
   font-weight: 530;
-  color: rgba(255, 255, 255, 0.13);
-  opacity: 0.5;
-  filter: blur(0.6px);
+  color: rgba(255, 255, 255, 0.26);
+  opacity: 0.62;
+  filter: blur(0.5px);
 }
 
 .aml-line.aml-above-far {
   font-size: 1.45rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.07);
-  opacity: 0.3;
-  filter: blur(1.4px);
+  color: rgba(255, 255, 255, 0.18);
+  opacity: 0.42;
+  filter: blur(1px);
 }
 
 /* ── Proximity: Below ── */
@@ -318,25 +322,25 @@
 .aml-line.aml-below-1 {
   font-size: 1.62rem;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.40);
-  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.60);
+  opacity: 0.95;
   filter: blur(0px);
 }
 
 .aml-line.aml-below-2 {
   font-size: 1.50rem;
   font-weight: 550;
-  color: rgba(255, 255, 255, 0.20);
-  opacity: 0.62;
-  filter: blur(0.35px);
+  color: rgba(255, 255, 255, 0.42);
+  opacity: 0.8;
+  filter: blur(0.3px);
 }
 
 .aml-line.aml-below-far {
   font-size: 1.45rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.08);
-  opacity: 0.32;
-  filter: blur(1.3px);
+  color: rgba(255, 255, 255, 0.24);
+  opacity: 0.5;
+  filter: blur(0.9px);
 }
 
 /* ── Interlude ── */
@@ -584,6 +588,7 @@
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: none;
 }
 
