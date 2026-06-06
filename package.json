@@ -1,0 +1,9 @@
+{
+  "name": "yt-music-lyrics",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Apple Music-style synced lyrics for YouTube Music (Chrome MV3 extension)",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
