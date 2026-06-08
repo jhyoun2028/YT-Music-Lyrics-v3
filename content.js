@@ -1358,6 +1358,72 @@
     buildOverlay(lines, null);
   }
 
+  // ── Resolved-lyrics cache (per videoId) ──────────────────────────────────
+  // Avoids re-running the multi-source fetch chain when returning to a song.
+  // Only successful results are cached; "no lyrics" is left uncached so a
+  // transient API failure can be retried on the next play.
+  var lyricsCache = {};
+  var lyricsCacheOrder = [];
+  var LYRICS_CACHE_MAX = 50;
+
+  function hasOwn(obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); }
+
+  function cacheLyrics(videoId, entry) {
+    if (!videoId || !entry) return;
+    if (!hasOwn(lyricsCache, videoId)) lyricsCacheOrder.push(videoId);
+    lyricsCache[videoId] = entry;
+    while (lyricsCacheOrder.length > LYRICS_CACHE_MAX) {
+      delete lyricsCache[lyricsCacheOrder.shift()];
+    }
+  }
+
+  function renderLyricsResult(entry) {
+    if (overlay) removeOverlay();
+    lyricsSource = entry.source || ""; lyricsType = entry.type || "";
+    if (entry.kind === "synced") showWithSyncedLyrics(entry.parsed);
+    else if (entry.kind === "plain") showWithPlainLyrics(entry.text);
+  }
+
+  // Source chain in priority order. Each entry fetches, then unpacks the raw
+  // response into a normalized {kind,source,type,...} result, or null to fall
+  // through to the next source.
+  var LYRICS_SOURCES = [
+    {
+      // Binimum (Apple Music TTML) — primary; word-level timing on most tracks.
+      fetch: function (song, vid, dur) { return binimumFetchLyrics(song.title, song.artist, dur); },
+      unpack: function (r) {
+        if (r && r.parsed && r.parsed.length >= 2)
+          return { kind: "synced", source: "binimum", type: r.hasWords ? "word" : "line", parsed: r.parsed };
+        return null;
+      }
+    },
+    {
+      fetch: function (song, vid, dur) { return mxmFetchLyrics(song.title, song.artist, dur); },
+      unpack: function (r) {
+        if (r && r.length >= 2) return { kind: "synced", source: "musixmatch", type: "line", parsed: r };
+        return null;
+      }
+    },
+    {
+      fetch: function (song, vid, dur) { return fetchSyncedLyrics(song.title, song.artist, dur); },
+      unpack: function (r) {
+        if (r && r.length >= 2) return { kind: "synced", source: "lrclib", type: "line", parsed: r };
+        return null;
+      }
+    },
+    {
+      fetch: function (song, vid, dur) { return cubeyFetchLyrics(song.title, song.artist, dur, vid); },
+      unpack: function (data) {
+        var result = parseCubeyResponse(data);
+        if (result && result.parsed)
+          return { kind: "synced", source: result.source, type: result.type, parsed: result.parsed };
+        if (result && result.plainText)
+          return { kind: "plain", source: result.source, type: "plain", text: result.plainText };
+        return null;
+      }
+    }
+  ];
+
   function tryShowLyrics() {
     if (!isExtensionValid() || !enabled || closedByUser || overlay) return;
 
@@ -1365,87 +1431,41 @@
     var video = getVideo();
     var duration = video ? video.duration : 0;
     var myFetch = ++fetchId;
-
     function isStale() { return myFetch !== fetchId || closedByUser; }
 
-    if (song.title && duration > 0 && !isNaN(duration)) {
-      function fallbackToCubeyThenPlain() {
-        if (isStale()) return;
-        var vid = getVideoId();
-        cubeyFetchLyrics(song.title, song.artist, duration, vid).then(function (data) {
-          if (isStale()) return;
-          var result = parseCubeyResponse(data);
-          if (result && result.parsed) {
-            if (overlay) removeOverlay();
-            lyricsSource = result.source; lyricsType = result.type;
-            showWithSyncedLyrics(result.parsed);
-          } else if (result && result.plainText) {
-            if (overlay) removeOverlay();
-            lyricsSource = result.source; lyricsType = "plain";
-            showWithPlainLyrics(result.plainText);
-          } else if (!overlay) {
-            showNoLyrics();
-          }
-        }).catch(function () {
-          if (isStale() || overlay) return;
-          showNoLyrics();
-        });
-      }
+    if (!(song.title && duration > 0 && !isNaN(duration))) { showNoLyrics(); return; }
 
-      function fallbackToLrclibThenCubey() {
-        if (isStale()) return;
-        fetchSyncedLyrics(song.title, song.artist, duration)
-          .then(function (parsed) {
-            if (isStale()) return;
-            if (parsed && parsed.length >= 2) {
-              lyricsSource = "lrclib"; lyricsType = "line";
-              showWithSyncedLyrics(parsed);
-            } else {
-              fallbackToCubeyThenPlain();
-            }
-          })
-          .catch(function () {
-            if (!isStale()) fallbackToCubeyThenPlain();
-          });
-      }
-
-      function fallbackToMxmThenRest() {
-        if (isStale()) return;
-        mxmFetchLyrics(song.title, song.artist, duration).then(function (parsed) {
-          if (isStale()) return;
-          if (parsed && parsed.length >= 2) {
-            lyricsSource = "musixmatch"; lyricsType = "line";
-            showWithSyncedLyrics(parsed);
-          } else {
-            fallbackToLrclibThenCubey();
-          }
-        }).catch(function () {
-          if (!isStale()) fallbackToLrclibThenCubey();
-        });
-      }
-
-      // Binimum (Apple Music TTML) is the primary source — same one Better
-      // Lyrics treats as #1. Word-level timing on most major-label tracks.
-      function fallbackToBinimumThenRest() {
-        if (isStale()) return;
-        binimumFetchLyrics(song.title, song.artist, duration).then(function (result) {
-          if (isStale()) return;
-          if (result && result.parsed && result.parsed.length >= 2) {
-            lyricsSource = "binimum";
-            lyricsType = result.hasWords ? "word" : "line";
-            showWithSyncedLyrics(result.parsed);
-          } else {
-            fallbackToMxmThenRest();
-          }
-        }).catch(function () {
-          if (!isStale()) fallbackToMxmThenRest();
-        });
-      }
-
-      fallbackToBinimumThenRest();
-    } else {
-      showNoLyrics();
+    var vid = getVideoId();
+    if (vid && hasOwn(lyricsCache, vid)) {
+      renderLyricsResult(lyricsCache[vid]);
+      return;
     }
+
+    var i = 0;
+    function tryNext() {
+      if (isStale()) return;
+      if (i >= LYRICS_SOURCES.length) {
+        if (!overlay) showNoLyrics();
+        return;
+      }
+      var src = LYRICS_SOURCES[i++];
+      Promise.resolve().then(function () { return src.fetch(song, vid, duration); })
+        .then(function (raw) {
+          if (isStale()) return;
+          var entry = null;
+          try { entry = src.unpack(raw); } catch (e) { entry = null; }
+          if (entry) {
+            cacheLyrics(vid, entry);
+            renderLyricsResult(entry);
+          } else {
+            tryNext();
+          }
+        })
+        .catch(function () {
+          if (!isStale()) tryNext();
+        });
+    }
+    tryNext();
   }
 
   function tryPlainLyrics() {
