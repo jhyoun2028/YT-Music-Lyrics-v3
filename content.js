@@ -343,7 +343,8 @@
     var words = [];
     for (var s = 0; s < spans.length; s++) {
       var sb = spans[s].getAttribute("begin") || spans[s].getAttribute("t");
-      var se = spans[s].getAttribute("end") || spans[s].getAttribute("d");
+      var sEnd = spans[s].getAttribute("end");
+      var sDur = spans[s].getAttribute("d");
       var st = (spans[s].textContent || "");
       if (sb && st) {
         // Apple Music TTML separates words with whitespace TEXT NODES between
@@ -353,7 +354,10 @@
         var sib = spans[s].nextSibling;
         if (sib && sib.nodeType === 3 && /^\s/.test(sib.nodeValue || "")) trail = " ";
         var startSec = divOffset + parseTTMLTime(sb);
-        var endSec = se ? divOffset + parseTTMLTime(se) : 0;
+        // `end` is an absolute clock value; `d` is a duration relative to begin.
+        var endSec = 0;
+        if (sEnd) endSec = divOffset + parseTTMLTime(sEnd);
+        else if (sDur) endSec = startSec + parseTTMLTime(sDur);
         words.push({ startMs: Math.round(startSec * 1000), endMs: Math.round(endSec * 1000), text: st + trail });
       }
     }
@@ -482,7 +486,7 @@
 
   function lrcSearch(q, duration) {
     return fetch("https://lrclib.net/api/search?q=" + encodeURIComponent(q))
-      .then(function (r) { return r.json(); })
+      .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (a) {
         if (!a || !a.length) return null;
         var synced = a.filter(function (r) { return r.syncedLyrics; });
