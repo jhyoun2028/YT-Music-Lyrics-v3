@@ -54,6 +54,58 @@
     return null;
   }
 
+  // Build a safe CSS url() value — quote it and escape characters that could
+  // break out of the url() function (defensive; YTM art URLs are well-formed).
+  function cssUrl(u) {
+    return 'url("' + String(u).replace(/["\\]/g, "\\$&") + '")';
+  }
+
+  // Sample a vibrant-ish accent color from the album art and expose it as the
+  // --aml-accent CSS variable (an "R, G, B" triplet). Cross-origin art can taint
+  // the canvas; if reading pixels throws we silently keep the white default.
+  // Purely additive — never propagates an error.
+  function applyAccentColor(overlayEl, artUrl) {
+    if (!artUrl || !overlayEl) return;
+    try {
+      var img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        try {
+          var n = 12;
+          var canvas = document.createElement("canvas");
+          canvas.width = n; canvas.height = n;
+          var ctx = canvas.getContext("2d");
+          if (!ctx) return;
+          ctx.drawImage(img, 0, 0, n, n);
+          var data = ctx.getImageData(0, 0, n, n).data;
+          var br = 0, bg = 0, bb = 0, bestScore = -1;
+          var ar = 0, ag = 0, ab = 0, count = 0;
+          for (var p = 0; p < data.length; p += 4) {
+            var r = data[p], g = data[p + 1], b = data[p + 2], al = data[p + 3];
+            if (al < 128) continue;
+            var max = Math.max(r, g, b), min = Math.min(r, g, b);
+            var lum = (max + min) / 2;
+            ar += r; ag += g; ab += b; count++;
+            // Prefer the most saturated mid-luminance pixel for the accent.
+            if (lum > 30 && lum < 235) {
+              var score = (max === 0 ? 0 : (max - min) / max) * (max - min);
+              if (score > bestScore) { bestScore = score; br = r; bg = g; bb = b; }
+            }
+          }
+          if (count === 0) return;
+          var cr, cg, cb;
+          if (bestScore > 0) { cr = br; cg = bg; cb = bb; }
+          else { cr = Math.round(ar / count); cg = Math.round(ag / count); cb = Math.round(ab / count); }
+          // Lift toward a glow-friendly brightness so the accent reads on the dark bg.
+          function lift(c) { return Math.min(255, Math.round(c * 0.6 + 110)); }
+          overlayEl.style.setProperty("--aml-accent", lift(cr) + ", " + lift(cg) + ", " + lift(cb));
+        } catch (e) { }
+      };
+      img.onerror = function () { };
+      img.src = artUrl;
+    } catch (e) { }
+  }
+
   function getSongInfo() {
     var bar = document.querySelector("ytmusic-player-bar");
     if (!bar) return { title: "", artist: "", rawArtist: "" };
@@ -1023,10 +1075,11 @@
     overlay.className = "aml-overlay";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-label", "Synced lyrics");
+    applyAccentColor(overlay, artUrl);
 
     var bgTint = document.createElement("div");
     bgTint.className = "aml-bg-tint";
-    if (artUrl) bgTint.style.backgroundImage = "url(" + artUrl + ")";
+    if (artUrl) bgTint.style.backgroundImage = cssUrl(artUrl);
     overlay.appendChild(bgTint);
 
     var left = document.createElement("div");
@@ -1266,7 +1319,7 @@
     overlay.className = "aml-overlay";
     var bgTint = document.createElement("div");
     bgTint.className = "aml-bg-tint";
-    if (artUrl) bgTint.style.backgroundImage = "url(" + artUrl + ")";
+    if (artUrl) bgTint.style.backgroundImage = cssUrl(artUrl);
     overlay.appendChild(bgTint);
     var left = document.createElement("div");
     left.className = "aml-left";
