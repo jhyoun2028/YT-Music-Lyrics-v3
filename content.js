@@ -1199,6 +1199,25 @@
     overlay.appendChild(offsetWrap);
     updateOffsetLabel();
 
+    // Keyboard-shortcut hint — shown only for the first several opens, then it
+    // stops appearing once the user has had a chance to learn the controls.
+    var hintSeen = 0;
+    try { hintSeen = parseInt(localStorage.getItem("aml_hint_seen") || "0", 10) || 0; } catch (e) { }
+    if (hintSeen < 6) {
+      var hint = document.createElement("div");
+      hint.className = "aml-hint";
+      var hintParts = [["Esc", " close"], ["[ ]", " sync"], ["\\", " reset"]];
+      for (var hp = 0; hp < hintParts.length; hp++) {
+        if (hp > 0) hint.appendChild(document.createTextNode("   ·   "));
+        var kb = document.createElement("kbd");
+        kb.textContent = hintParts[hp][0];
+        hint.appendChild(kb);
+        hint.appendChild(document.createTextNode(hintParts[hp][1]));
+      }
+      overlay.appendChild(hint);
+      try { localStorage.setItem("aml_hint_seen", String(hintSeen + 1)); } catch (e) { }
+    }
+
     var debugEl = document.createElement("div");
     debugEl.className = "aml-debug";
     debugEl.style.display = debugVisible ? "block" : "none";
