@@ -3,7 +3,7 @@
   "name": "YT Music Lyrics — Final",
   "version": "2.0.0",
   "description": "Apple Music-style synced lyrics for YouTube Music",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage"],
   "host_permissions": [
     "*://music.youtube.com/*",
     "https://lrclib.net/*",
