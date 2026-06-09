@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import core from "./extract.mjs";
 
-const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, insertInterludes, remapWordDataIndices } = core;
+const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices } = core;
 
 test("parseLRC: basic timestamped lines, sorted", () => {
   const out = parseLRC("[00:10.00]world\n[00:05.00]hello");
@@ -54,6 +54,47 @@ test("getArtistVariations: splits out parenthetical names", () => {
   assert.ok(v.includes("A (B)"));
   assert.ok(v.includes("B"));
   assert.ok(v.includes("A"));
+});
+
+test("getTitleVariations: splits a bilingual Korean title (capped at 2)", () => {
+  const v = getTitleVariations("사랑인가 봐 (Love, maybe)");
+  assert.ok(v.includes("사랑인가 봐 (Love, maybe)"), "keeps original");
+  assert.ok(v.includes("사랑인가 봐"), "adds parenthetical-stripped form");
+  assert.ok(v.length <= 2, "capped to 2 to keep request fan-out small");
+});
+
+test("getTitleVariations: plain title yields just itself", () => {
+  assert.deepEqual(getTitleVariations("Ditto"), ["Ditto"]);
+});
+
+test("getTitleVariations: strips a trailing ' - ...' descriptor and caps to 4", () => {
+  const v = getTitleVariations("Spring Day - From the Album");
+  assert.ok(v.includes("Spring Day"));
+  assert.ok(v.length <= 4);
+});
+
+test("normMatch: strips parentheticals, feat, punctuation; keeps Hangul", () => {
+  assert.equal(normMatch("팅 (feat. 김하온)"), "팅");
+  assert.equal(normMatch("Love, maybe"), "lovemaybe");
+  assert.equal(normMatch("Ditto (Remix)"), "ditto");
+});
+
+test("looseMatch: bilingual / parenthetical titles match their core", () => {
+  assert.ok(looseMatch("팅 (feat. 김하온)", "팅"));
+  assert.ok(looseMatch("사랑인가 봐 (Love, maybe)", "사랑인가 봐"));
+  assert.ok(!looseMatch("팅", "Attention"));
+});
+
+// The "팅" regression: a candidate with the same (short) title but a DIFFERENT
+// artist must be rejected — artist is the discriminator.
+test("candidateMatches: same short title, wrong artist → rejected", () => {
+  assert.ok(candidateMatches("팅", "우디고차일드", "팅 (feat. 김하온)", "우디고차일드"));
+  assert.ok(!candidateMatches("팅", "Charlie Puth", "팅 (feat. 김하온)", "우디고차일드"));
+});
+
+test("candidateMatches: unreadable fields are not held against a candidate", () => {
+  // No title/artist info from the API → can't disprove → accept (duration still gates).
+  assert.ok(candidateMatches("", "", "팅", "우디고차일드"));
 });
 
 test("insertInterludes: inserts a marker across a long gap", () => {

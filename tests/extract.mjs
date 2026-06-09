@@ -25,6 +25,10 @@ const NAMES = [
   "parseTTMLTime",
   "formatTime",
   "getArtistVariations",
+  "getTitleVariations",
+  "normMatch",
+  "looseMatch",
+  "candidateMatches",
   "insertInterludes",
   "remapWordDataIndices",
 ];
