@@ -24,10 +24,19 @@ icons/               — Extension icons (16/48/128)
   - `{type: "aml-seek-to", time}` — content → bridge
 
 ### Lyrics Source Priority (fallback chain)
-1. Musixmatch API (`mxmFetchLyrics`, line 462) — most popular songs
-2. lrclib.net (`fetchSyncedLyrics`, line 477) — LRC format, get + search
-3. Cubey API (`cubeyFetchLyrics`, line 219) — Turnstile auth, TTML/MXM/LRC/plain
-4. YTM built-in plain text (`tryPlainLyrics`, line 1296) — last resort
+Driven by the `LYRICS_SOURCES` array (data-driven chain in `tryShowLyrics`). In order:
+1. **Binimum** (`binimumFetchLyrics`) — primary; Apple Music TTML, word/line timing
+2. **Musixmatch** (`mxmFetchLyrics`) — line
+3. **lrclib.net** (`fetchSyncedLyrics`) — LRC, get + search
+4. **Cubey** (`cubeyFetchLyrics`) — Turnstile auth → JWT, TTML/MXM/LRC/plain
+
+Each source's `fetch` runs in order; its `unpack` normalizes the response to a
+`{kind, source, type, ...}` entry or returns `null` to fall through. The first
+hit is rendered and cached per `videoId` (`lyricsCache`, in-memory LRU) so
+returning to a song skips the network. Negative results are **not** cached
+(transient failures retry next play). If all sources miss, `showNoLyrics()`.
+`tryPlainLyrics`/`getLyricsText` (YTM built-in plain text) exist but are not
+currently wired into the chain.
 
 ### Key Functions (content.js)
 | Function | Line | Purpose |
@@ -46,10 +55,16 @@ icons/               — Extension icons (16/48/128)
 ## Build / Lint / Test Commands
 
 **No build step.** This directory is loaded directly as an unpacked Chrome extension.
+Edit files → reload extension in `chrome://extensions`.
+
+### Tests
+Pure parser/sync helpers have a zero-dependency test suite (Node's built-in
+`node:test`; no npm install needed). `tests/extract.mjs` pulls the functions
+straight out of `content.js` by name so tests track the real source.
 
 ```bash
-# No build, no test suite, no package.json in this directory
-# Edit files → reload extension in chrome://extensions
+npm test            # runs tests/*.test.mjs via `node --test`
+node --check content.js   # quick syntax check (no browser needed)
 ```
 
 ### CI Note
@@ -118,10 +133,13 @@ Lines near active lyric get graduated CSS classes:
 ## Key Patterns to Follow
 
 ### Adding a New Lyrics Source
-1. Create fetch function: `newSourceFetchLyrics(title, artist, duration)`
-2. Return a Promise resolving to parsed data or `null`
-3. Insert into fallback chain in `tryShowLyrics()` (line 1226)
-4. Set `lyricsSource` and `lyricsType` before calling `showWithSyncedLyrics()`
+1. Create fetch function: `newSourceFetchLyrics(title, artist, duration)` returning
+   a Promise resolving to its raw response or `null`.
+2. Add an entry to the `LYRICS_SOURCES` array at the desired priority position:
+   `{ fetch: function (song, vid, dur) {...}, unpack: function (raw) {...} }`.
+3. `unpack` returns a normalized entry — `{ kind: "synced", source, type, parsed }`
+   or `{ kind: "plain", source, type, text }` — or `null` to fall through.
+   No need to touch `tryShowLyrics`; the chain + caching handle the rest.
 
 ### API Authentication Pattern
 - Token caching in `localStorage` or `chrome.storage.local`
@@ -151,6 +169,6 @@ if (!isExtensionValid()) { resolve(null); return; }
 - **Check both synced and plain lyrics paths** — changes may affect the fallback chain
 
 ## Git Conventions
-- Main branch: `master`
+- Main branch: `main`
 - Commit convention: Angular (per `.all-contributorsrc`)
 - `.claude` directory is gitignored
