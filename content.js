@@ -4,6 +4,7 @@
   var STATE_KEY = "aml_enabled";
   var enabled = true;
   var overlay = null;
+  var loadingEl = null;
   var activeIndex = -1;
   var lastSongTitle = "";
   var lyricsTabClicked = false;
@@ -32,6 +33,7 @@
   var debugVisible = false;
   var lastVisibleTime = 0;
   var fetchId = 0;
+  var fontScale = 1;
 
   function getVideo() {
     return document.querySelector("video");
@@ -64,6 +66,86 @@
   // --aml-accent CSS variable (an "R, G, B" triplet). Cross-origin art can taint
   // the canvas; if reading pixels throws we silently keep the white default.
   // Purely additive — never propagates an error.
+  // Pin a sampled RGB into a glow-friendly band while preserving its hue, so the
+  // accent reads as the album's actual color (rich), not a washed pastel.
+  function normalizeAccent(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h = 0, s = 0, l = (max + min) / 2;
+    var d = max - min;
+    if (d !== 0) {
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60; if (h < 0) h += 360;
+    }
+    // Target: vivid but not blinding. Pin luminance ~0.62. Lift weak saturation
+    // so muted-but-colored art still reads — but leave near-gray art neutral
+    // (don't invent a hue for a monochrome cover).
+    if (s < 0.12) { s = Math.min(s, 0.08); }
+    else { s = Math.max(s, 0.45); s = Math.min(s, 0.9); }
+    l = 0.62;
+    function hue2(p, q, t) {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    }
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var pp = 2 * l - q;
+    var hk = h / 360;
+    return [
+      Math.round(hue2(pp, q, hk + 1 / 3) * 255),
+      Math.round(hue2(pp, q, hk) * 255),
+      Math.round(hue2(pp, q, hk - 1 / 3) * 255)
+    ];
+  }
+
+  function hslToRgb(h, s, l) {
+    h = ((h % 360) + 360) % 360;
+    function f(p, q, t) {
+      if (t < 0) t += 1; if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    }
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    var hk = h / 360;
+    return [
+      Math.round(f(p, q, hk + 1 / 3) * 255),
+      Math.round(f(p, q, hk) * 255),
+      Math.round(f(p, q, hk - 1 / 3) * 255)
+    ];
+  }
+
+  // Four harmonious colors derived from the accent's hue (analogous + a far
+  // accent). Always vivid, so the background mesh reads as color on any album.
+  function accentPalette(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+    var h = 0, s = 0, l = (max + min) / 2;
+    if (d !== 0) {
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = ((g - b) / d) % 6;
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60; if (h < 0) h += 360;
+    }
+    var S = Math.min(0.85, Math.max(0.5, s));
+    var offsets = [0, 32, -32, 158];
+    var lums = [0.56, 0.52, 0.5, 0.46];
+    var out = [];
+    for (var i = 0; i < 4; i++) {
+      var c = hslToRgb(h + offsets[i], S, lums[i]);
+      out.push(c[0] + ", " + c[1] + ", " + c[2]);
+    }
+    return out;
+  }
+
   function applyAccentColor(overlayEl, artUrl) {
     if (!artUrl || !overlayEl) return;
     try {
@@ -71,7 +153,7 @@
       img.crossOrigin = "anonymous";
       img.onload = function () {
         try {
-          var n = 12;
+          var n = 16;
           var canvas = document.createElement("canvas");
           canvas.width = n; canvas.height = n;
           var ctx = canvas.getContext("2d");
@@ -96,14 +178,147 @@
           var cr, cg, cb;
           if (bestScore > 0) { cr = br; cg = bg; cb = bb; }
           else { cr = Math.round(ar / count); cg = Math.round(ag / count); cb = Math.round(ab / count); }
-          // Lift toward a glow-friendly brightness so the accent reads on the dark bg.
-          function lift(c) { return Math.min(255, Math.round(c * 0.6 + 110)); }
-          overlayEl.style.setProperty("--aml-accent", lift(cr) + ", " + lift(cg) + ", " + lift(cb));
+          // Normalize in HSL: keep the album's hue, pin luminance into a
+          // glow-friendly band.
+          var rgb = normalizeAccent(cr, cg, cb);
+          overlayEl.style.setProperty("--aml-accent", rgb[0] + ", " + rgb[1] + ", " + rgb[2]);
+
+          // Mesh palette: harmonious hue rotations off the accent, so the
+          // background is always colorful — even for white/monochrome covers
+          // (where per-pixel extraction would yield gray).
+          var pal = accentPalette(rgb[0], rgb[1], rgb[2]);
+          for (var ci = 0; ci < 4; ci++) {
+            overlayEl.style.setProperty("--aml-c" + (ci + 1), pal[ci]);
+          }
         } catch (e) { }
       };
       img.onerror = function () { };
       img.src = artUrl;
     } catch (e) { }
+  }
+
+  // ── Sound-reactive background (opt-in) ──────────────────────────────────────
+  // Drives the --aml-level CSS var (0..1) from the live audio's bass energy so
+  // the gradient mesh pumps with the beat. OFF by default and toggled with "V":
+  // it routes the media element through Web Audio (createMediaElementSource),
+  // which we keep connected to the context destination so audio always plays.
+  // If the browser blocks it (CORS / already-tapped element), we bail safely.
+  // Default ON (YTM streams audio via same-origin MSE blobs, so the Web Audio
+  // tap generally works without muting); the user can disable with "V" and the
+  // choice persists. If the tap throws, we fail safe and leave audio untouched.
+  var audioReactive = true;
+  var audioCtx = null, audioSrc = null, audioAnalyser = null, audioFreq = null;
+  var audioRafId = null, audioSourceFailed = false, audioSmoothed = 0;
+  try { audioReactive = localStorage.getItem("aml_audio_reactive") !== "0"; } catch (e) { }
+
+  function audioSetLevel(v) {
+    if (overlay) overlay.style.setProperty("--aml-level", String(v));
+  }
+
+  var audioGestureArmed = false;
+
+  // Entry point: try to set up now; if the AudioContext can't run yet (no recent
+  // user gesture), wait for the next gesture instead of routing audio through a
+  // suspended context (which would mute playback).
+  function startAudioReactive() {
+    if (!audioReactive || audioSourceFailed) return;
+    if (audioSrc && audioCtx && audioCtx.state === "running") { startAudioLoop(); return; }
+    trySetupAudio();
+    if (!audioSrc || !audioCtx || audioCtx.state !== "running") armAudioGesture();
+  }
+
+  function trySetupAudio() {
+    if (!audioReactive || audioSourceFailed) return;
+    var video = getVideo();
+    if (!video) return;
+    try {
+      if (!audioCtx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) { audioSourceFailed = true; return; }
+        audioCtx = new AC();
+      }
+    } catch (e) { audioSourceFailed = true; return; }
+    if (audioCtx.state !== "running") {
+      if (audioCtx.resume) {
+        try { audioCtx.resume().then(function () { trySetupAudio(); }, function () { }); } catch (e) { }
+      }
+      return; // don't tap audio until the context is actually running
+    }
+    if (!audioSrc) {
+      try {
+        audioSrc = audioCtx.createMediaElementSource(video);
+        audioAnalyser = audioCtx.createAnalyser();
+        audioAnalyser.fftSize = 256;
+        audioAnalyser.smoothingTimeConstant = 0.75;
+        audioFreq = new Uint8Array(audioAnalyser.frequencyBinCount);
+        audioSrc.connect(audioAnalyser);
+        audioAnalyser.connect(audioCtx.destination);
+      } catch (e) {
+        // Element already tapped, or blocked — leave audio untouched.
+        audioSourceFailed = true;
+        return;
+      }
+    }
+    startAudioLoop();
+  }
+
+  function armAudioGesture() {
+    if (audioGestureArmed) return;
+    audioGestureArmed = true;
+    function onGesture() {
+      document.removeEventListener("pointerdown", onGesture, true);
+      document.removeEventListener("keydown", onGesture, true);
+      audioGestureArmed = false;
+      if (audioReactive) trySetupAudio();
+    }
+    document.addEventListener("pointerdown", onGesture, true);
+    document.addEventListener("keydown", onGesture, true);
+  }
+
+  function startAudioLoop() {
+    if (audioRafId || !audioAnalyser) return;
+    function loop() {
+      if (!audioReactive || !audioAnalyser || !overlay) { audioRafId = null; return; }
+      audioAnalyser.getByteFrequencyData(audioFreq);
+      var sum = 0, bins = 10;
+      for (var i = 0; i < bins; i++) sum += audioFreq[i];
+      var level = sum / (bins * 255);
+      audioSmoothed += (level - audioSmoothed) * 0.28;
+      var out = Math.min(1, audioSmoothed * 1.6);
+      audioSetLevel(Math.round(out * 1000) / 1000);
+      audioRafId = requestAnimationFrame(loop);
+    }
+    audioRafId = requestAnimationFrame(loop);
+  }
+
+  function stopAudioReactive() {
+    if (audioRafId) { cancelAnimationFrame(audioRafId); audioRafId = null; }
+    audioSmoothed = 0;
+    audioSetLevel(0);
+    // audioSrc stays connected to destination so playback continues.
+  }
+
+  function toggleAudioReactive() {
+    audioReactive = !audioReactive;
+    try { localStorage.setItem("aml_audio_reactive", audioReactive ? "1" : "0"); } catch (e) { }
+    if (audioReactive) startAudioReactive();
+    else stopAudioReactive();
+    if (audioReactive && audioSourceFailed) showToast("사운드 반응 사용 불가 (브라우저 차단)");
+    else showToast(audioReactive ? "사운드 반응 켜짐" : "사운드 반응 꺼짐");
+  }
+
+  var toastTimer = null;
+  function showToast(text) {
+    if (!overlay) return;
+    var t = overlay.querySelector(".aml-toast");
+    if (!t) { t = document.createElement("div"); t.className = "aml-toast"; overlay.appendChild(t); }
+    t.textContent = text;
+    t.classList.add("aml-toast-show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      var el = overlay && overlay.querySelector(".aml-toast");
+      if (el) el.classList.remove("aml-toast-show");
+    }, 1700);
   }
 
   function getSongInfo() {
@@ -221,24 +436,65 @@
     return result;
   }
 
+  // fetch() with a hard timeout — a single slow/hung request must never stall
+  // the whole fallback chain (this was the cause of multi-second lyric loads).
+  function fetchT(url, opts, ms) {
+    opts = opts || {};
+    ms = ms || 5000;
+    if (typeof AbortController === "undefined") return fetch(url, opts);
+    var ac = new AbortController();
+    opts.signal = ac.signal;
+    var to = setTimeout(function () { ac.abort(); }, ms);
+    return fetch(url, opts).then(
+      function (r) { clearTimeout(to); return r; },
+      function (e) { clearTimeout(to); throw e; }
+    );
+  }
+
   // Binimum — Apple Music's TTML lyrics database (word/syllable timing).
   // Same source Better Lyrics treats as primary. Returns Apple Music TTML
   // (itunes:timing="Word") with absolute <p begin> and <span begin> times.
   var BINIMUM_API = "https://lyrics-api.binimum.org/";
 
   function binimumFetchLyrics(title, artist, duration) {
+    var titles = getTitleVariations(title);
+    var i = 0;
+    function next() {
+      if (i >= titles.length) return Promise.resolve(null);
+      return binimumFetchOne(titles[i++], artist, duration).then(function (r) { return r || next(); });
+    }
+    return next();
+  }
+
+  function binimumFetchOne(title, artist, duration) {
     if (!title) return Promise.resolve(null);
     var qs = "?track=" + encodeURIComponent(title) +
              "&artist=" + encodeURIComponent(artist || "");
     if (duration > 0 && !isNaN(duration)) qs += "&duration=" + Math.round(duration);
     var searchUrl = BINIMUM_API + qs;
-    return fetch(searchUrl).then(function (r) {
+    return fetchT(searchUrl, null, 4500).then(function (r) {
       if (!r.ok) return null;
       return r.json();
     }).then(function (data) {
       if (!data || !data.results || !data.results.length) return null;
-      // Prefer word-level results, then closest duration match.
       var results = data.results.slice();
+      // Reject results whose title/artist clearly don't match what's playing —
+      // a short title like "팅" otherwise pulls an unrelated word-synced song.
+      var anyTitled = false;
+      for (var ai = 0; ai < results.length; ai++) {
+        if (fieldOf(results[ai], ["trackName", "title", "name", "track"])) { anyTitled = true; break; }
+      }
+      if (anyTitled) {
+        results = results.filter(function (r) {
+          return candidateMatches(
+            fieldOf(r, ["trackName", "title", "name", "track"]),
+            fieldOf(r, ["artistName", "artist", "artistNames"]),
+            title, artist
+          );
+        });
+        if (!results.length) return null;
+      }
+      // Prefer word-level results, then closest duration match.
       results.sort(function (a, b) {
         var ta = a.timing_type === "word" ? 0 : 1;
         var tb = b.timing_type === "word" ? 0 : 1;
@@ -260,7 +516,7 @@
         if (lyHost !== "lyrics-storage.binimum.org" && lyHost !== "lyrics-api.binimum.org") return null;
       } catch (e) { return null; }
       if (duration > 0 && pick.duration && Math.abs(pick.duration - duration) > MAX_DURATION_DIFF) return null;
-      return fetch(pick.lyricsUrl).then(function (r) {
+      return fetchT(pick.lyricsUrl, null, 4500).then(function (r) {
         if (!r.ok) return null;
         return r.text();
       }).then(function (ttml) {
@@ -297,7 +553,7 @@
         if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
       }
       window.addEventListener("message", onMsg);
-      setTimeout(function () { cleanup(); reject(new Error("turnstile timeout")); }, 15000);
+      setTimeout(function () { cleanup(); reject(new Error("turnstile timeout")); }, 8000);
     });
   }
 
@@ -545,12 +801,74 @@
     return v.filter(function (s) { return s.length > 0; });
   }
 
+  // Title variations to widen matching \u2014 especially for Korean tracks, which on
+  // YouTube Music routinely carry a bilingual title like "\uc0ac\ub791\uc778\uac00 \ubd10 (Love, maybe)"
+  // while the lyric databases key on one form or the other. Tries (in order):
+  // the original, the title without any (parenthetical), the parenthetical's
+  // content alone, the part before " - ", and a feat/prod-stripped form.
+  // Capped to keep the per-source request count bounded.
+  function getTitleVariations(title) {
+    var t = (title || "").trim();
+    if (!t) return [""];
+    var out = [t];
+    function add(s) {
+      s = (s || "").trim();
+      if (s && s.length >= 2 && out.indexOf(s) === -1) out.push(s);
+    }
+    // Full/half-width parentheses.
+    add(t.replace(/\s*[\(\uff08][^\)\uff09]*[\)\uff09]\s*/g, " ").replace(/\s{2,}/g, " ").trim());
+    var pm = t.match(/[\(\uff08]([^\)\uff09]+)[\)\uff09]/);
+    if (pm) add(pm[1]);
+    var dash = t.indexOf(" - ");
+    if (dash > 0) add(t.slice(0, dash));
+    add(t.replace(/\s*[\(\uff08]?\s*(feat|ft|with|prod)\.?[^\)\uff09]*[\)\uff09]?\s*$/i, "").trim());
+    // Cap hard: each extra variation multiplies sequential requests. Original +
+    // one cleaned form covers the common bilingual-title case without the fan-out
+    // that made search take ~1 minute on misses.
+    return out.slice(0, 2);
+  }
+
   var MAX_DURATION_DIFF = 10;
+
+  // ── Match verification ──────────────────────────────────────────────────────
+  // Title variations widen matching for Korean tracks, but a short/generic title
+  // (e.g. "팅") can pull a completely different song. Before trusting a result we
+  // check its title+artist loosely agree with what's actually playing.
+  function normMatch(s) {
+    return (s || "")
+      .toLowerCase()
+      .replace(/[\(\[（][^\)\]）]*[\)\]）]/g, "")           // drop (parentheticals)
+      .replace(/\b(feat|ft|featuring|with|prod|remaster|remix|inst|instrumental)\b\.?/g, "")
+      .replace(/[^0-9a-z가-힣]/g, "");             // keep alnum + Hangul
+  }
+  function looseMatch(a, b) {
+    a = normMatch(a); b = normMatch(b);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    if (a.length >= 2 && b.length >= 2 && (a.indexOf(b) !== -1 || b.indexOf(a) !== -1)) return true;
+    return false;
+  }
+  function fieldOf(obj, names) {
+    for (var i = 0; i < names.length; i++) {
+      if (obj[names[i]]) return obj[names[i]];
+    }
+    return "";
+  }
+  // True if a candidate's title+artist are an acceptable match for what's playing.
+  // Artist is the strong discriminator (a bare title like "팅" matches many songs,
+  // but the wrong one will have a different artist). Fields we can't read are not
+  // held against the candidate.
+  function candidateMatches(candTitle, candArtist, wantTitle, wantArtist) {
+    var titleOk = !candTitle || looseMatch(candTitle, wantTitle);
+    var artistOk = !candArtist || !wantArtist || looseMatch(candArtist, wantArtist) ||
+                   looseMatch(candArtist, getArtistVariations(wantArtist)[0] || wantArtist);
+    return titleOk && artistOk;
+  }
 
   function lrcGet(title, artist, dur) {
     var u = "https://lrclib.net/api/get?track_name=" + encodeURIComponent(title) +
       "&artist_name=" + encodeURIComponent(artist) + "&duration=" + Math.round(dur);
-    return fetch(u).then(function (r) { return r.ok ? r.json() : null; })
+    return fetchT(u, null, 4500).then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         if (!d || !d.syncedLyrics) return null;
         if (dur > 0 && d.duration && Math.abs(d.duration - dur) > MAX_DURATION_DIFF) return null;
@@ -559,13 +877,22 @@
       .catch(function () { return null; });
   }
 
-  function lrcSearch(q, duration) {
-    return fetch("https://lrclib.net/api/search?q=" + encodeURIComponent(q))
+  function lrcSearch(q, duration, vTitle, vArtist) {
+    return fetchT("https://lrclib.net/api/search?q=" + encodeURIComponent(q), null, 4500)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (a) {
         if (!a || !a.length) return null;
         var synced = a.filter(function (r) { return r.syncedLyrics; });
         if (!synced.length) return null;
+
+        // Verify the returned track actually matches what's playing — the search
+        // endpoint is fuzzy and will happily return a different song.
+        if (vTitle) {
+          synced = synced.filter(function (r) {
+            return candidateMatches(r.trackName || r.name, r.artistName, vTitle, vArtist);
+          });
+          if (!synced.length) return null;
+        }
 
         if (duration > 0) {
           synced.sort(function (x, y) {
@@ -599,7 +926,7 @@
         }
 
         var tokenUrl = "https://apic-desktop.musixmatch.com/ws/1.1/token.get?app_id=web-desktop-app-v1.0&format=json&t=" + Date.now();
-        fetch(tokenUrl)
+        fetchT(tokenUrl, null, 4500)
           .then(function (r) {
             if (!r.ok) return null;
             return r.json();
@@ -628,6 +955,19 @@
     });
   }
 
+  // The matched track Musixmatch actually resolved to (for verification).
+  function mxmExtractMatchedTrack(data) {
+    try {
+      var mc = data.message.body.macro_calls;
+      var t = mc["matcher.track.get"] &&
+              mc["matcher.track.get"].message &&
+              mc["matcher.track.get"].message.body &&
+              mc["matcher.track.get"].message.body.track;
+      if (t) return { title: t.track_name || "", artist: t.artist_name || "" };
+    } catch (e) { }
+    return null;
+  }
+
   function mxmExtractSubtitleBody(data) {
     return data &&
       data.message &&
@@ -654,7 +994,7 @@
         "&q_duration=" + durSec +
         "&usertoken=" + encodeURIComponent(token);
 
-      return fetch(url)
+      return fetchT(url, null, 5000)
         .then(function (r) {
           if (r.status === 401) return { __mxmUnauthorized: true };
           if (!r.ok) {
@@ -669,6 +1009,12 @@
               return mxmFetchForArtist(title, artist, duration, true);
             }
             if (debugVisible) console.warn("[AML] Musixmatch token refresh failed after 401");
+            return null;
+          }
+
+          // Reject a fuzzy mismatch (Musixmatch resolved a different song).
+          var matched = mxmExtractMatchedTrack(data);
+          if (matched && !candidateMatches(matched.title, matched.artist, title, artist)) {
             return null;
           }
 
@@ -687,33 +1033,52 @@
   }
 
   function mxmFetchLyrics(title, artist, duration) {
-    var artists = getArtistVariations(artist);
+    var titles = getTitleVariations(title);
+    var artists = getArtistVariations(artist).slice(0, 2);
     if (!artists.length) artists = [artist || ""];
+    // (title, artist) pairs — original first. Capped (≤2 titles × ≤2 artists)
+    // to keep the sequential request count small.
+    var pairs = [];
+    for (var ti = 0; ti < titles.length; ti++) {
+      for (var ai = 0; ai < artists.length; ai++) pairs.push([titles[ti], artists[ai]]);
+    }
     var idx = 0;
-
-    function nextArtist() {
-      if (idx >= artists.length) return Promise.resolve(null);
-      return mxmFetchForArtist(title, artists[idx++], duration, false).then(function (parsed) {
-        return parsed || nextArtist();
+    function nextPair() {
+      if (idx >= pairs.length) return Promise.resolve(null);
+      var p = pairs[idx++];
+      return mxmFetchForArtist(p[0], p[1], duration, false).then(function (parsed) {
+        return parsed || nextPair();
       });
     }
-
-    return nextArtist();
+    return nextPair();
   }
 
   function fetchSyncedLyrics(title, artist, duration) {
-    var arts = getArtistVariations(artist);
+    var titles = getTitleVariations(title);
+    var arts = getArtistVariations(artist).slice(0, 2);
+    if (!arts.length) arts = [artist || ""];
+    // Exact get: original title across artist variations, then the cleaned title
+    // against the primary artist.
+    var gets = [];
+    for (var ai = 0; ai < arts.length; ai++) gets.push([title, arts[ai]]);
+    for (var tg = 1; tg < titles.length; tg++) gets.push([titles[tg], arts[0]]);
     var gi = 0;
     function nextGet() {
-      if (gi >= arts.length) return nextSearch();
-      return lrcGet(title, arts[gi++], duration).then(function (r) { return r || nextGet(); });
+      if (gi >= gets.length) return nextSearch();
+      var g = gets[gi++];
+      return lrcGet(g[0], g[1], duration).then(function (r) { return r || nextGet(); });
     }
-    var searches = arts.map(function (a) { return title + " " + a; });
-    searches.push(title);
+    // Free-text search: each title against the primary artist only (the get
+    // step already tried the artist variations). Verified against title+artist.
+    var searches = [];
+    for (var ts = 0; ts < titles.length; ts++) {
+      searches.push({ q: titles[ts] + " " + arts[0], t: titles[ts], a: arts[0] });
+    }
     var si = 0;
     function nextSearch() {
       if (si >= searches.length) return Promise.resolve(null);
-      return lrcSearch(searches[si++], duration).then(function (r) { return r || nextSearch(); });
+      var s = searches[si++];
+      return lrcSearch(s.q, duration, s.t, s.a).then(function (r) { return r || nextSearch(); });
     }
     return nextGet();
   }
@@ -778,6 +1143,14 @@
 
     function syncFrame() {
       if (!syncActive || !overlay) return;
+      // The bridge reports movie_player's live video id every tick. If it no
+      // longer matches the song this overlay was built for, the track advanced
+      // (e.g. auto-play to the next song) — rebuild instead of scrubbing the
+      // previous song's lyrics against the new song's clock.
+      if (playerVideoId && currentVideoId && playerVideoId !== currentVideoId) {
+        handleBridgeSongChange();
+        return;
+      }
       var rawTime = playerTime;
       var browserNow = Date.now();
       var sourceBrowserTime = playerBrowserTime;
@@ -822,6 +1195,45 @@
   function stopSync() {
     syncActive = false;
     if (syncRafId) { cancelAnimationFrame(syncRafId); syncRafId = null; }
+  }
+
+  var pendingReload = false;
+
+  // Rebuild the overlay for a newly-started track. Triggered by the bridge's
+  // videoId changing under a live overlay — this covers auto-advance at the end
+  // of a song, which the DOM MutationObserver can miss. Waits for the player bar
+  // to actually reflect the new title before fetching, so we don't request the
+  // old title against the new videoId (which the cache would then make sticky).
+  function handleBridgeSongChange() {
+    if (pendingReload) return;
+    pendingReload = true;
+    var prevTitle = lastSongTitle;
+    stopSync();
+    removeOverlay();
+    removeLoadingOverlay();
+    closedByUser = false;
+    lyricsTabClicked = false;
+    activeIndex = -1;
+    userOffset = 0;
+    fetchId++;
+    showLoadingOverlay();
+    var tries = 0;
+    function waitForNewSong() {
+      if (closedByUser || overlay) { pendingReload = false; return; }
+      var s = getSongInfo();
+      var v = getVideo();
+      var durReady = v && v.duration > 0 && !isNaN(v.duration);
+      var titleFresh = s.title && s.title !== prevTitle;
+      if ((titleFresh && durReady) || tries >= 20) {
+        lastSongTitle = s.title || prevTitle;
+        pendingReload = false;
+        tryShowLyrics();
+      } else {
+        tries++;
+        setTimeout(waitForNewSong, 150);
+      }
+    }
+    waitForNewSong();
   }
 
   var lastSyncLog = 0;
@@ -881,14 +1293,12 @@
       if (progressFill && video.duration && !isNaN(video.duration)) {
         progressFill.style.width = ((t / video.duration) * 100) + "%";
       }
-      var timeEl = overlay.querySelector(".aml-toolbar-time");
-      if (timeEl) {
-        timeEl.textContent = formatTime(t) + " / " + formatTime(video.duration);
-      }
+      var elapsedEl = overlay.querySelector(".aml-tb-elapsed");
+      if (elapsedEl) elapsedEl.textContent = formatTime(t);
+      var durationEl = overlay.querySelector(".aml-tb-duration");
+      if (durationEl) durationEl.textContent = formatTime(video.duration);
       var playBtn = overlay.querySelector(".aml-tb-play");
-      if (playBtn) {
-        playBtn.textContent = video.paused ? "\u25b6" : "\u23f8";
-      }
+      if (playBtn) setPlayIcon(playBtn, video.paused);
       if (debugVisible) {
         var dbg = overlay.querySelector(".aml-debug");
         if (dbg) {
@@ -933,12 +1343,42 @@
     boundVideoHandler = null;
   }
 
+  // \u2500\u2500 Inline SVG icons (crisp + consistent, vs system emoji glyphs) \u2500\u2500
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var ICON_PLAY = "M8 5v14l11-7z";
+  var ICON_PAUSE = "M6 5h3.5v14H6zM14.5 5H18v14h-3.5z";
+  function makeIcon(pathD, stroke) {
+    var svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    var p = document.createElementNS(SVG_NS, "path");
+    p.setAttribute("d", pathD);
+    if (stroke) {
+      svg.setAttribute("fill", "none");
+      p.setAttribute("stroke", "currentColor");
+      p.setAttribute("stroke-width", "2");
+      p.setAttribute("stroke-linecap", "round");
+      p.setAttribute("stroke-linejoin", "round");
+    } else {
+      p.setAttribute("fill", "currentColor");
+    }
+    svg.appendChild(p);
+    return svg;
+  }
+  function setIconPath(btn, pathD) {
+    var p = btn.querySelector("path");
+    if (p) p.setAttribute("d", pathD);
+  }
+  function setPlayIcon(btn, isPaused) {
+    setIconPath(btn, isPaused ? ICON_PLAY : ICON_PAUSE);
+  }
+
   function bindToolbarVideoEvents(playBtn) {
     cleanupVideoEvents();
     var video = getVideo();
     if (!video || !playBtn) return;
     function updatePlayState() {
-      playBtn.textContent = video.paused ? "\u25b6" : "\u23f8";
+      setPlayIcon(playBtn, video.paused);
     }
     boundVideoEl = video;
     boundVideoHandler = updatePlayState;
@@ -970,6 +1410,89 @@
     activeIndex = -1;
     lastSearchHint = 0;
     seekTimeout = setTimeout(function () { userSeeking = false; }, 150);
+  }
+
+  // Seek to an absolute time (used by the scrubbable progress bar).
+  function seekToTime(seconds) {
+    if (!(seconds >= 0)) return;
+    userSeeking = true;
+    if (seekTimeout) clearTimeout(seekTimeout);
+    window.postMessage({ type: "aml-seek-to", time: seconds }, location.origin);
+    activeIndex = -1;
+    lastSearchHint = 0;
+    seekTimeout = setTimeout(function () { userSeeking = false; }, 150);
+  }
+
+  // ── Font scaling ──────────────────────────────────────────────────────────
+  var FONT_SCALE_MIN = 0.7;
+  var FONT_SCALE_MAX = 1.6;
+  var FONT_SCALE_STEP = 0.1;
+
+  function loadFontScale() {
+    try {
+      var s = parseFloat(localStorage.getItem("aml_font_scale"));
+      if (!isNaN(s) && s >= FONT_SCALE_MIN && s <= FONT_SCALE_MAX) return s;
+    } catch (e) { }
+    return 1;
+  }
+
+  function setFontScale(next) {
+    fontScale = Math.max(FONT_SCALE_MIN, Math.min(FONT_SCALE_MAX, Math.round(next * 100) / 100));
+    try { localStorage.setItem("aml_font_scale", String(fontScale)); } catch (e) { }
+    if (!overlay) return;
+    overlay.style.setProperty("--aml-font-scale", String(fontScale));
+    var disp = overlay.querySelector(".aml-font-display");
+    if (disp) disp.textContent = Math.round(fontScale * 100) + "%";
+    // Line heights changed — re-cache offsets and re-anchor the active line.
+    cacheLinePositions();
+    var keep = activeIndex;
+    if (keep >= 0) { activeIndex = -1; setActive(keep); }
+  }
+
+  function bumpFontScale(delta) { setFontScale(fontScale + delta); }
+
+  // ── Copy lyrics to clipboard ────────────────────────────────────────────────
+  function copyLyricsToClipboard() {
+    if (!overlay) return;
+    var lineEls = overlay.querySelectorAll(".aml-line:not(.aml-interlude):not(.aml-empty)");
+    var parts = [];
+    for (var i = 0; i < lineEls.length; i++) {
+      var tx = (lineEls[i].textContent || "").trim();
+      if (tx) parts.push(tx);
+    }
+    if (!parts.length) return;
+    var text = parts.join("\n");
+    var btn = overlay.querySelector(".aml-tb-copy");
+    function flash(ok) {
+      if (!btn) return;
+      btn.textContent = ok ? "✓" : "✕";
+      btn.classList.add("aml-copied");
+      setTimeout(function () {
+        if (!btn) return;
+        btn.textContent = "⧉";
+        btn.classList.remove("aml-copied");
+      }, 1400);
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { flash(true); }, function () { fallbackCopy(text, flash); });
+      } else {
+        fallbackCopy(text, flash);
+      }
+    } catch (e) { fallbackCopy(text, flash); }
+  }
+
+  function fallbackCopy(text, flash) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.cssText = "position:fixed;top:-1000px;left:-1000px;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      flash(ok);
+    } catch (e) { flash(false); }
   }
 
   function setActive(index, correctedTime) {
@@ -1066,6 +1589,7 @@
 
   function buildOverlay(displayLines, timedEntries) {
     removeOverlay();
+    removeLoadingOverlay();
     stopSync();
 
     var artUrl = getAlbumArtUrl();
@@ -1076,11 +1600,18 @@
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-label", "Synced lyrics");
     applyAccentColor(overlay, artUrl);
+    fontScale = loadFontScale();
+    overlay.style.setProperty("--aml-font-scale", String(fontScale));
 
     var bgTint = document.createElement("div");
     bgTint.className = "aml-bg-tint";
     if (artUrl) bgTint.style.backgroundImage = cssUrl(artUrl);
     overlay.appendChild(bgTint);
+
+    // Slow-drifting multi-color gradient mesh derived from the album palette.
+    var mesh = document.createElement("div");
+    mesh.className = "aml-mesh";
+    overlay.appendChild(mesh);
 
     var left = document.createElement("div");
     left.className = "aml-left";
@@ -1168,7 +1699,7 @@
 
     var offsetWrap = document.createElement("div");
     offsetWrap.className = "aml-offset-controls";
-    offsetWrap.title = "Sync offset — keyboard: [ earlier, ] later, \\ reset";
+    offsetWrap.title = "Sync offset: [ earlier, ] later, \\ reset · Text size: − / +";
     var offsetMinus = document.createElement("button");
     offsetMinus.className = "aml-offset-btn";
     offsetMinus.textContent = "-0.1s";
@@ -1196,6 +1727,29 @@
     offsetWrap.appendChild(offsetMinus);
     offsetWrap.appendChild(offsetDisplay);
     offsetWrap.appendChild(offsetPlus);
+
+    var ctrlSep = document.createElement("span");
+    ctrlSep.className = "aml-ctrl-sep";
+    var fontMinus = document.createElement("button");
+    fontMinus.className = "aml-offset-btn";
+    fontMinus.textContent = "A−";
+    fontMinus.title = "Smaller text (−)";
+    fontMinus.setAttribute("aria-label", "Decrease text size");
+    var fontDisplay = document.createElement("span");
+    fontDisplay.className = "aml-offset-display aml-font-display";
+    fontDisplay.textContent = Math.round(fontScale * 100) + "%";
+    var fontPlus = document.createElement("button");
+    fontPlus.className = "aml-offset-btn";
+    fontPlus.textContent = "A+";
+    fontPlus.title = "Larger text (+)";
+    fontPlus.setAttribute("aria-label", "Increase text size");
+    fontMinus.addEventListener("click", function () { bumpFontScale(-FONT_SCALE_STEP); });
+    fontPlus.addEventListener("click", function () { bumpFontScale(FONT_SCALE_STEP); });
+    offsetWrap.appendChild(ctrlSep);
+    offsetWrap.appendChild(fontMinus);
+    offsetWrap.appendChild(fontDisplay);
+    offsetWrap.appendChild(fontPlus);
+
     overlay.appendChild(offsetWrap);
     updateOffsetLabel();
 
@@ -1206,7 +1760,7 @@
     if (hintSeen < 6) {
       var hint = document.createElement("div");
       hint.className = "aml-hint";
-      var hintParts = [["Esc", " close"], ["[ ]", " sync"], ["\\", " reset"]];
+      var hintParts = [["Esc", " close"], ["[ ]", " sync"], ["C", " copy"], ["− +", " size"], ["V", " bg"]];
       for (var hp = 0; hp < hintParts.length; hp++) {
         if (hp > 0) hint.appendChild(document.createTextNode("   ·   "));
         var kb = document.createElement("kbd");
@@ -1227,54 +1781,59 @@
     var toolbar = document.createElement("div");
     toolbar.className = "aml-toolbar";
 
+    var toolbarInner = document.createElement("div");
+    toolbarInner.className = "aml-toolbar-inner";
+
+    // Left: transport controls (SVG icons; play is a filled circular button).
+    var toolbarControls = document.createElement("div");
+    toolbarControls.className = "aml-toolbar-controls";
+    var prevBtn = document.createElement("button");
+    prevBtn.className = "aml-tb-btn aml-tb-prev";
+    prevBtn.setAttribute("aria-label", "Previous track");
+    prevBtn.appendChild(makeIcon("M7 6h2v12H7zm3 6l9 6V6z"));
+    var playBtn = document.createElement("button");
+    playBtn.className = "aml-tb-btn aml-tb-play";
+    playBtn.setAttribute("aria-label", "Play or pause");
+    playBtn.appendChild(makeIcon(ICON_PLAY));
+    var nextBtn = document.createElement("button");
+    nextBtn.className = "aml-tb-btn aml-tb-next";
+    nextBtn.setAttribute("aria-label", "Next track");
+    nextBtn.appendChild(makeIcon("M15 6h2v12h-2zM5 6v12l9-6z"));
+    toolbarControls.appendChild(prevBtn);
+    toolbarControls.appendChild(playBtn);
+    toolbarControls.appendChild(nextBtn);
+
+    // Center: real scrubber with elapsed / duration time labels flanking it.
+    var toolbarScrub = document.createElement("div");
+    toolbarScrub.className = "aml-toolbar-scrub";
+    var elapsedEl = document.createElement("span");
+    elapsedEl.className = "aml-tb-time aml-tb-elapsed";
+    elapsedEl.textContent = "0:00";
     var toolbarProgress = document.createElement("div");
     toolbarProgress.className = "aml-toolbar-progress";
     var toolbarProgressFill = document.createElement("div");
     toolbarProgressFill.className = "aml-toolbar-progress-fill";
     toolbarProgress.appendChild(toolbarProgressFill);
-    toolbar.appendChild(toolbarProgress);
+    var durationEl = document.createElement("span");
+    durationEl.className = "aml-tb-time aml-tb-duration";
+    durationEl.textContent = "0:00";
+    toolbarScrub.appendChild(elapsedEl);
+    toolbarScrub.appendChild(toolbarProgress);
+    toolbarScrub.appendChild(durationEl);
 
-    var toolbarInner = document.createElement("div");
-    toolbarInner.className = "aml-toolbar-inner";
-
-    var toolbarControls = document.createElement("div");
-    toolbarControls.className = "aml-toolbar-controls";
-    var prevBtn = document.createElement("button");
-    prevBtn.className = "aml-tb-btn aml-tb-prev";
-    prevBtn.textContent = "\u23ee";
-    prevBtn.setAttribute("aria-label", "Previous track");
-    var playBtn = document.createElement("button");
-    playBtn.className = "aml-tb-btn aml-tb-play";
-    playBtn.textContent = "\u25b6";
-    playBtn.setAttribute("aria-label", "Play or pause");
-    var nextBtn = document.createElement("button");
-    nextBtn.className = "aml-tb-btn aml-tb-next";
-    nextBtn.textContent = "\u23ed";
-    nextBtn.setAttribute("aria-label", "Next track");
-    toolbarControls.appendChild(prevBtn);
-    toolbarControls.appendChild(playBtn);
-    toolbarControls.appendChild(nextBtn);
-
-    var toolbarInfo = document.createElement("div");
-    toolbarInfo.className = "aml-toolbar-info";
-    var toolbarTitle = document.createElement("div");
-    toolbarTitle.className = "aml-toolbar-title";
-    toolbarTitle.textContent = song.title;
-    var toolbarArtist = document.createElement("div");
-    toolbarArtist.className = "aml-toolbar-artist";
-    toolbarArtist.textContent = song.rawArtist || song.artist;
-    toolbarInfo.appendChild(toolbarTitle);
-    toolbarInfo.appendChild(toolbarArtist);
-
+    // Right: copy lyrics.
     var toolbarRight = document.createElement("div");
     toolbarRight.className = "aml-toolbar-right";
-    var toolbarTime = document.createElement("span");
-    toolbarTime.className = "aml-toolbar-time";
-    toolbarTime.textContent = "0:00 / 0:00";
-    toolbarRight.appendChild(toolbarTime);
+    var copyBtn = document.createElement("button");
+    copyBtn.className = "aml-tb-btn aml-tb-copy";
+    copyBtn.appendChild(makeIcon("M9 9V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-4M4 10h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z", true));
+    copyBtn.setAttribute("aria-label", "Copy lyrics");
+    copyBtn.title = "Copy lyrics (C)";
+    copyBtn.addEventListener("click", copyLyricsToClipboard);
+    toolbarRight.appendChild(copyBtn);
 
     toolbarInner.appendChild(toolbarControls);
-    toolbarInner.appendChild(toolbarInfo);
+    toolbarInner.appendChild(toolbarScrub);
     toolbarInner.appendChild(toolbarRight);
     toolbar.appendChild(toolbarInner);
     overlay.appendChild(toolbar);
@@ -1301,6 +1860,46 @@
       if (video.paused) video.play();
       else video.pause();
     });
+
+    // Scrubbable progress bar — click or drag to seek. While dragging we set
+    // userSeeking so processSync stops overwriting the fill, then commit the
+    // actual seek on release (avoids spamming seekTo on every pointermove).
+    var progressDragging = false;
+    function progressFraction(e) {
+      var rect = toolbarProgress.getBoundingClientRect();
+      if (rect.width <= 0) return 0;
+      return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    }
+    function progressPreview(e) {
+      var f = progressFraction(e);
+      toolbarProgressFill.style.width = (f * 100) + "%";
+      return f;
+    }
+    toolbarProgress.addEventListener("pointerdown", function (e) {
+      var video = getVideo();
+      if (!video || !video.duration || isNaN(video.duration)) return;
+      progressDragging = true;
+      userSeeking = true;
+      try { toolbarProgress.setPointerCapture(e.pointerId); } catch (err) { }
+      progressPreview(e);
+      e.preventDefault();
+    });
+    toolbarProgress.addEventListener("pointermove", function (e) {
+      if (progressDragging) progressPreview(e);
+    });
+    function endProgressDrag(e) {
+      if (!progressDragging) return;
+      progressDragging = false;
+      var video = getVideo();
+      var f = progressPreview(e);
+      if (video && video.duration && !isNaN(video.duration)) seekToTime(f * video.duration);
+      else userSeeking = false;
+    }
+    toolbarProgress.addEventListener("pointerup", endProgressDrag);
+    toolbarProgress.addEventListener("pointercancel", function () {
+      progressDragging = false; userSeeking = false;
+    });
+
     bindToolbarVideoEvents(playBtn);
 
     document.body.appendChild(overlay);
@@ -1322,6 +1921,7 @@
     }
     setActive(initTarget);
     startSync();
+    startAudioReactive();
 
     requestAnimationFrame(function () {
       requestAnimationFrame(function () {
@@ -1332,6 +1932,7 @@
 
   function showNoLyrics() {
     removeOverlay();
+    removeLoadingOverlay();
     var artUrl = getAlbumArtUrl();
     var song = getSongInfo();
     overlay = document.createElement("div");
@@ -1371,6 +1972,74 @@
     cachedContentHeight = 0;
     cachedLines = null;
     if (overlay) { overlay.remove(); overlay = null; }
+  }
+
+  // Loading screen — shown immediately when the user opens lyrics so the wait
+  // for the fetch chain isn't a blank, unresponsive screen. It's a separate
+  // element from `overlay` so it doesn't trip the "already showing" guards;
+  // buildOverlay()/showNoLyrics() dismiss it (crossfade) once lyrics resolve.
+  function showLoadingOverlay() {
+    if (loadingEl || overlay || closedByUser || !enabled) return;
+    var artUrl = getAlbumArtUrl();
+    var song = getSongInfo();
+
+    loadingEl = document.createElement("div");
+    loadingEl.className = "aml-overlay aml-loading";
+    loadingEl.setAttribute("role", "dialog");
+    loadingEl.setAttribute("aria-label", "Loading lyrics");
+    applyAccentColor(loadingEl, artUrl);
+
+    var bgTint = document.createElement("div");
+    bgTint.className = "aml-bg-tint";
+    if (artUrl) bgTint.style.backgroundImage = cssUrl(artUrl);
+    loadingEl.appendChild(bgTint);
+
+    var lmesh = document.createElement("div");
+    lmesh.className = "aml-mesh";
+    loadingEl.appendChild(lmesh);
+
+    var center = document.createElement("div");
+    center.className = "aml-loading-center";
+    if (artUrl) {
+      var art = document.createElement("img");
+      art.className = "aml-loading-art";
+      art.src = artUrl;
+      center.appendChild(art);
+    }
+    var spinner = document.createElement("div");
+    spinner.className = "aml-loading-spinner";
+    center.appendChild(spinner);
+    var label = document.createElement("div");
+    label.className = "aml-loading-label";
+    label.textContent = song.title || "Loading";
+    center.appendChild(label);
+    var sub = document.createElement("div");
+    sub.className = "aml-loading-sub";
+    sub.textContent = "Finding lyrics…";
+    center.appendChild(sub);
+    loadingEl.appendChild(center);
+
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "aml-close";
+    closeBtn.textContent = "×";
+    closeBtn.setAttribute("aria-label", "Cancel");
+    closeBtn.addEventListener("click", function () {
+      closedByUser = true; fetchId++; removeLoadingOverlay();
+    });
+    loadingEl.appendChild(closeBtn);
+
+    document.body.appendChild(loadingEl);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { if (loadingEl) loadingEl.classList.add("aml-visible"); });
+    });
+  }
+
+  function removeLoadingOverlay() {
+    if (!loadingEl) return;
+    var el = loadingEl;
+    loadingEl = null;
+    el.classList.remove("aml-visible");
+    setTimeout(function () { if (el && el.parentNode) el.parentNode.removeChild(el); }, 400);
   }
 
   var INTERLUDE_GAP = 10;
@@ -1628,10 +2297,10 @@
   }
 
   function onSongChange() {
-    if (!isExtensionValid()) return;
+    if (!isExtensionValid() || pendingReload) return;
     var song = getSongInfo();
     if (song.title && song.title !== lastSongTitle) {
-      var wasShowing = !!overlay;
+      var wasShowing = !!overlay || !!loadingEl;
       lastSongTitle = song.title;
       lyricsTabClicked = false;
       closedByUser = false;
@@ -1639,6 +2308,7 @@
       userOffset = 0;
       fetchId++;
       removeOverlay();
+      removeLoadingOverlay();
       if (wasShowing) tryShowLyricsWithRetry();
     }
   }
@@ -1647,6 +2317,7 @@
     var attempts = 0;
     var maxAttempts = 20;
     var launched = false;
+    showLoadingOverlay();
     function attempt() {
       if (overlay || closedByUser || !enabled || launched) return;
       var video = getVideo();
@@ -1696,9 +2367,11 @@
       var tab = findLyricsTab();
       if (!tab) return;
       if (tab.contains(e.target) || tab === e.target) {
-        if (overlay) {
+        if (overlay || loadingEl) {
           closedByUser = true;
-          hideOverlay();
+          fetchId++;
+          removeLoadingOverlay();
+          if (overlay) hideOverlay();
         } else {
           closedByUser = false;
           var song = getSongInfo();
@@ -1735,8 +2408,12 @@
   }
 
   document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && (overlay || loadingEl)) {
+      closedByUser = true; fetchId++; removeLoadingOverlay();
+      if (overlay) hideOverlay();
+      return;
+    }
     if (!overlay) return;
-    if (e.key === "Escape") { closedByUser = true; hideOverlay(); return; }
     if (e.key === "D" && e.shiftKey) {
       debugVisible = !debugVisible;
       var dbg = overlay.querySelector(".aml-debug");
@@ -1748,6 +2425,10 @@
     if (e.key === "[") { e.preventDefault(); bumpOffset(-0.1); }
     else if (e.key === "]") { e.preventDefault(); bumpOffset(0.1); }
     else if (e.key === "\\") { e.preventDefault(); bumpOffset(-userOffset); }
+    else if (e.key === "c" || e.key === "C") { e.preventDefault(); copyLyricsToClipboard(); }
+    else if (e.key === "-" || e.key === "_") { e.preventDefault(); bumpFontScale(-FONT_SCALE_STEP); }
+    else if (e.key === "=" || e.key === "+") { e.preventDefault(); bumpFontScale(FONT_SCALE_STEP); }
+    else if (e.key === "v" || e.key === "V") { e.preventDefault(); toggleAudioReactive(); }
   });
 
   function isExtensionValid() {
