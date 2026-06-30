@@ -34,35 +34,27 @@
   --aml-font-scale: 1;
 }
 
-/* Subtle film grain over the whole overlay — kills gradient banding from the
-   heavy background blur and adds a tactile, analog richness. */
-.aml-overlay::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
 .aml-overlay.aml-visible {
   opacity: 1;
   pointer-events: auto;
 }
 
-/* ── Background ── */
+/* ── Background (original blurred album art + breathing; pulses with sound) ── */
 
 .aml-bg-tint {
   position: absolute;
   inset: -140px;
   background-size: cover;
   background-position: center;
-  filter: blur(130px) brightness(0.26) saturate(2.1);
-  opacity: 0.92;
+  /* Brightness + scale ride the live audio level (--aml-level) so the
+     background pulses with the music; fast transitions track the beat. */
+  filter: blur(120px) brightness(calc(0.18 + 0.15 * var(--aml-level))) saturate(2.2);
+  opacity: 0.9;
   z-index: 0;
   pointer-events: none;
-  /* No ambient breathing — stillness reads as premium. The art is the light. */
+  transform: scale(calc(1 + 0.06 * var(--aml-level)));
+  transition: transform 0.1s ease-out, filter 0.12s ease-out;
+  animation: aml-bg-breathe 12s ease-in-out infinite;
 }
 
 .aml-bg-tint::after {
@@ -70,122 +62,104 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 75% 60% at 30% 50%, rgba(0, 0, 0, 0.0) 0%, rgba(0, 0, 0, 0.6) 100%),
-    linear-gradient(160deg,
+    radial-gradient(ellipse 70% 50% at 25% 50%, rgba(0, 0, 0, 0.0) 0%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(165deg,
       rgba(255, 255, 255, 0.02) 0%,
-      transparent 38%,
-      transparent 62%,
-      rgba(0, 0, 0, 0.42) 100%);
+      transparent 35%,
+      transparent 65%,
+      rgba(0, 0, 0, 0.3) 100%);
+  animation: aml-gradient-shift 16s ease-in-out infinite alternate;
 }
 
-/* Slow-drifting multi-color gradient mesh from the album palette — the "living"
-   background (Apple Music animated-cover feel). Stays subtle so lyrics dominate.
-   --aml-level (0 unless sound-reactive mode is on) pumps scale + intensity. */
-.aml-mesh {
-  position: absolute;
-  inset: -30%;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(38% 40% at 22% 26%, rgba(var(--aml-c1), 0.85) 0%, transparent 64%),
-    radial-gradient(44% 46% at 80% 18%, rgba(var(--aml-c2), 0.8) 0%, transparent 64%),
-    radial-gradient(48% 50% at 78% 84%, rgba(var(--aml-c3), 0.78) 0%, transparent 64%),
-    radial-gradient(42% 44% at 20% 86%, rgba(var(--aml-c4), 0.72) 0%, transparent 64%);
-  filter: blur(54px) saturate(1.5);
-  opacity: calc(0.62 + 0.34 * var(--aml-level));
-  transform: scale(calc(1.05 + 0.14 * var(--aml-level)));
-  animation: aml-mesh-drift 19s ease-in-out infinite alternate;
-  will-change: transform, opacity;
+/* Idle breathing rides opacity only, leaving transform/filter free for the
+   audio-reactive pulse above (no conflict). */
+@keyframes aml-bg-breathe {
+  0%, 100% { opacity: 0.86; }
+  50%      { opacity: 0.95; }
 }
 
-/* Second, counter-drifting layer for a richer, more "liquid" motion. */
-.aml-mesh::after {
-  content: "";
-  position: absolute;
-  inset: -10%;
-  background:
-    radial-gradient(36% 40% at 68% 32%, rgba(var(--aml-c2), 0.6) 0%, transparent 62%),
-    radial-gradient(40% 44% at 30% 64%, rgba(var(--aml-c4), 0.55) 0%, transparent 62%);
-  filter: blur(50px) saturate(1.4);
-  animation: aml-mesh-drift2 27s ease-in-out infinite alternate;
-  will-change: transform;
+@keyframes aml-gradient-shift {
+  0%   { opacity: 0.65; }
+  100% { opacity: 1; }
 }
 
-@keyframes aml-mesh-drift {
-  0%   { transform: scale(calc(1.02 + 0.14 * var(--aml-level))) translate3d(0, 0, 0) rotate(0deg); }
-  50%  { transform: scale(calc(1.22 + 0.14 * var(--aml-level)))  translate3d(4%, -3.5%, 0) rotate(9deg); }
-  100% { transform: scale(calc(1.08 + 0.14 * var(--aml-level)))  translate3d(-4%, 3.5%, 0) rotate(-7deg); }
-}
-
-@keyframes aml-mesh-drift2 {
-  0%   { transform: translate3d(0, 0, 0) rotate(0deg) scale(1.1); }
-  50%  { transform: translate3d(-5%, 4%, 0) rotate(-10deg) scale(1.28); }
-  100% { transform: translate3d(5%, -4%, 0) rotate(8deg) scale(1.12); }
-}
+/* The colorful drift mesh belonged to the redesign; the original look uses the
+   blurred album art above. content.js still creates the node — keep it hidden. */
+.aml-mesh { display: none; }
 
 /* ── Left Panel (Album Art + Info) ── */
 
 .aml-left {
   position: relative;
   z-index: 1;
-  width: 32%;
+  width: 35%;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 0 0 0 6%;
+  padding: 0 4%;
   opacity: 0;
-  transform: translateY(16px);
+  transform: translateY(24px) scale(0.97);
   transition:
-    opacity   0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s,
-    transform 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
+    opacity   1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s,
+    transform 1s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
 }
 
 .aml-visible .aml-left {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
 .aml-album-art {
-  width: 84%;
-  max-width: 340px;
+  width: 68%;
+  max-width: 320px;
   aspect-ratio: 1;
-  border-radius: 14px;
+  border-radius: 16px;
   object-fit: cover;
   box-shadow:
-    0 32px 80px rgba(0, 0, 0, 0.55),
-    0 8px 28px rgba(0, 0, 0, 0.4),
-    0 0 0 0.5px rgba(255, 255, 255, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 6px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  transition:
+    transform  0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: aml-float 8s ease-in-out infinite;
+}
+
+@keyframes aml-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
 }
 
 .aml-album-art:hover {
-  transform: scale(1.02);
+  animation-play-state: paused;
+  transform: scale(1.03);
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.65),
+    0 8px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .aml-song-title {
-  margin-top: 32px;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #fff;
-  text-align: left;
+  margin-top: 22px;
+  font-size: 1.05rem;
+  font-weight: 640;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: center;
   letter-spacing: -0.02em;
-  line-height: 1.2;
-  max-width: 92%;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  max-width: 88%;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .aml-song-artist {
-  margin-top: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
-  text-align: left;
-  letter-spacing: 0.01em;
+  margin-top: 5px;
+  font-size: 0.82rem;
+  font-weight: 420;
+  color: rgba(255, 255, 255, 0.38);
+  text-align: center;
+  letter-spacing: 0.005em;
 }
 
 /* ── Lyrics Content Area ── */
@@ -193,26 +167,26 @@
 .aml-content {
   position: relative;
   z-index: 1;
-  width: 68%;
+  width: 65%;
   height: 100%;
   overflow: hidden;
-  padding: 0 7% 0 4%;
+  padding: 0 6% 0 3%;
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0,0,0,0.15) 4%,
-    black 13%,
-    black 80%,
-    rgba(0,0,0,0.15) 95%,
+    rgba(0,0,0,0.1) 2%,
+    black 10%,
+    black 78%,
+    rgba(0,0,0,0.1) 96%,
     transparent 100%
   );
   mask-image: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(0,0,0,0.15) 4%,
-    black 13%,
-    black 80%,
-    rgba(0,0,0,0.15) 95%,
+    rgba(0,0,0,0.1) 2%,
+    black 10%,
+    black 78%,
+    rgba(0,0,0,0.1) 96%,
     transparent 100%
   );
 }
@@ -220,8 +194,6 @@
 .aml-lines-wrapper {
   will-change: transform;
   transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-  /* Cap the reading measure so lines stay comfortable on wide/ultrawide screens. */
-  max-width: 46rem;
 }
 
 .aml-spacer {
@@ -232,46 +204,50 @@
 /* ── Lyric Lines ── */
 
 .aml-line {
-  padding: 11px 0;
+  padding: 12px 0;
   cursor: pointer;
   user-select: none;
   transform-origin: left center;
-  will-change: color, opacity, transform;
+  will-change: color, opacity, transform, filter;
   transition:
-    font-size      0.5s  cubic-bezier(0.22, 1, 0.36, 1),
-    color          0.4s  cubic-bezier(0.33, 0, 0.2, 1),
-    opacity        0.4s  cubic-bezier(0.33, 0, 0.2, 1),
-    transform      0.5s  cubic-bezier(0.22, 1, 0.36, 1),
-    letter-spacing 0.5s  cubic-bezier(0.22, 1, 0.36, 1);
-  /* tier-3 / far is the resting default; proximity classes lift nearer lines */
-  font-size: calc(1.4rem * var(--aml-font-scale, 1));
-  font-weight: 500;
-  line-height: 1.26;
-  color: rgba(255, 255, 255, 0.22);
-  letter-spacing: -0.012em;
-  transform: translateY(0);
+    font-size      0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    color          0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity        0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    transform      0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    text-shadow    0.4s  cubic-bezier(0.22, 1, 0.36, 1),
+    filter         0.32s cubic-bezier(0.4, 0, 0.2, 1),
+    letter-spacing 0.4s  cubic-bezier(0.22, 1, 0.36, 1);
+  font-size: calc(1.45rem * var(--aml-font-scale, 1));
+  font-weight: 550;
+  line-height: 1.38;
+  color: rgba(255, 255, 255, 0.08);
+  letter-spacing: -0.01em;
+  text-shadow: none;
+  transform: translateY(0) scale(1);
+  filter: blur(0.6px);
 }
 
 .aml-visible .aml-line {
-  animation: aml-line-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation: aml-line-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   animation-delay: var(--aml-d, 0s);
 }
 
-/* Cap stagger so very long songs don't have a long reveal tail. */
-.aml-visible .aml-line:nth-child(n + 18) {
-  animation-delay: 0.62s;
+/* Cap stagger so very long songs don't have a 2s+ reveal tail. */
+.aml-visible .aml-line:nth-child(n + 22) {
+  animation-delay: 0.7s;
 }
 
 @keyframes aml-line-enter {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(12px) scale(0.985);
+    filter: blur(4px);
   }
 }
 
 .aml-line:hover {
-  color: rgba(255, 255, 255, 0.62);
-  transform: translateX(6px);
+  color: rgba(255, 255, 255, 0.30);
+  filter: blur(0px);
 }
 
 .aml-line.aml-empty {
@@ -282,55 +258,90 @@
 /* ── Active Line ── */
 
 .aml-line.aml-active {
-  font-size: calc(2.5rem * var(--aml-font-scale, 1));
-  font-weight: 800;
+  font-size: calc(2.05rem * var(--aml-font-scale, 1));
+  font-weight: 700;
   color: #ffffff;
   opacity: 1;
-  letter-spacing: -0.035em;
-  /* Emphasis comes from size + weight + pure white, NOT a neon glow. A single
-     soft shadow only for legibility against bright album backgrounds. */
-  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.35);
-  transform: translateY(0);
+  letter-spacing: -0.025em;
+  filter: blur(0px);
+  text-shadow:
+    0 0 35px rgba(255, 255, 255, 0.18),
+    0 0 70px rgba(255, 255, 255, 0.08);
+  transform: translateX(0px) scale(1);
+  animation: aml-active-glow 4.5s ease-in-out infinite;
 }
 
-/* ── Proximity (4 decisive tiers: active · ±1 · ±2 · far) ──
-   Hierarchy is carried by SIZE + WEIGHT + CONTRAST, not blur. Upcoming (below)
-   lines are a touch brighter than their past (above) counterparts so the eye
-   can read ahead. */
-
-/* Tier 1 — immediately adjacent */
-.aml-line.aml-below-1 {
-  font-size: calc(1.75rem * var(--aml-font-scale, 1));
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.66);
-  opacity: 1;
+@keyframes aml-active-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 30px rgba(255, 255, 255, 0.16),
+      0 0 60px rgba(255, 255, 255, 0.06);
+  }
+  50% {
+    text-shadow:
+      0 0 42px rgba(255, 255, 255, 0.24),
+      0 0 84px rgba(255, 255, 255, 0.10);
+  }
 }
+
+/* ── Proximity: Above ── */
+
 .aml-line.aml-above-1 {
-  font-size: calc(1.75rem * var(--aml-font-scale, 1));
+  font-size: calc(1.65rem * var(--aml-font-scale, 1));
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.50);
-  opacity: 1;
+  color: rgba(255, 255, 255, 0.42);
+  opacity: 0.88;
+  filter: blur(0px);
 }
 
-/* Tier 2 */
-.aml-line.aml-below-2 {
-  font-size: calc(1.5rem * var(--aml-font-scale, 1));
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.40);
-}
 .aml-line.aml-above-2 {
-  font-size: calc(1.5rem * var(--aml-font-scale, 1));
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.30);
+  font-size: calc(1.52rem * var(--aml-font-scale, 1));
+  font-weight: 560;
+  color: rgba(255, 255, 255, 0.22);
+  opacity: 0.7;
+  filter: blur(0.3px);
 }
 
-/* Tier 3 — far (everything else falls to the .aml-line resting default) */
-.aml-line.aml-above-3,
-.aml-line.aml-above-far,
-.aml-line.aml-below-far {
-  font-size: calc(1.4rem * var(--aml-font-scale, 1));
+.aml-line.aml-above-3 {
+  font-size: calc(1.48rem * var(--aml-font-scale, 1));
+  font-weight: 530;
+  color: rgba(255, 255, 255, 0.13);
+  opacity: 0.5;
+  filter: blur(0.6px);
+}
+
+.aml-line.aml-above-far {
+  font-size: calc(1.45rem * var(--aml-font-scale, 1));
   font-weight: 500;
+  color: rgba(255, 255, 255, 0.07);
+  opacity: 0.3;
+  filter: blur(1.4px);
+}
+
+/* ── Proximity: Below ── */
+
+.aml-line.aml-below-1 {
+  font-size: calc(1.62rem * var(--aml-font-scale, 1));
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.40);
+  opacity: 0.9;
+  filter: blur(0px);
+}
+
+.aml-line.aml-below-2 {
+  font-size: calc(1.50rem * var(--aml-font-scale, 1));
+  font-weight: 550;
   color: rgba(255, 255, 255, 0.20);
+  opacity: 0.62;
+  filter: blur(0.35px);
+}
+
+.aml-line.aml-below-far {
+  font-size: calc(1.45rem * var(--aml-font-scale, 1));
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.24);
+  opacity: 0.5;
+  filter: blur(1.3px);
 }
 
 /* ── Interlude ── */
@@ -338,37 +349,48 @@
 .aml-line.aml-interlude {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 22px 0;
+  gap: 8px;
+  padding: 20px 0;
+  font-size: calc(1.2rem * var(--aml-font-scale, 1));
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.20);
+  letter-spacing: 0.12em;
   pointer-events: none;
   user-select: none;
 }
 
-/* Three dots; the active interlude gently breathes opacity only (no bounce). */
 .aml-line.aml-interlude::before {
-  content: "";
-  display: block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.28);
-  box-shadow:
-    16px 0 0 rgba(255, 255, 255, 0.28),
-    32px 0 0 rgba(255, 255, 255, 0.28);
-  margin-right: 32px;
+  content: "· · ·";
+  display: inline-block;
+  letter-spacing: 0.3em;
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.18);
+  animation: aml-interlude-pulse 3s ease-in-out infinite;
+}
+
+.aml-line.aml-interlude.aml-active {
+  font-size: calc(1.35rem * var(--aml-font-scale, 1));
+  color: rgba(255, 255, 255, 0.40);
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.08);
+  animation: none;
 }
 
 .aml-line.aml-interlude.aml-active::before {
-  background: rgba(var(--aml-accent), 0.85);
-  box-shadow:
-    16px 0 0 rgba(var(--aml-accent), 0.85),
-    32px 0 0 rgba(var(--aml-accent), 0.85);
-  animation: aml-interlude-breathe 2.2s ease-in-out infinite;
+  color: rgba(255, 255, 255, 0.40);
+  animation: aml-interlude-alive 2s ease-in-out infinite;
 }
 
-@keyframes aml-interlude-breathe {
-  0%, 100% { opacity: 0.45; }
-  50%      { opacity: 1; }
+@keyframes aml-interlude-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.03); }
+}
+
+@keyframes aml-interlude-alive {
+  0%       { opacity: 0.4; transform: scale(1)    translateY(0);    }
+  25%      { opacity: 0.8; transform: scale(1.08) translateY(-1px); }
+  50%      { opacity: 0.9; transform: scale(1.05) translateY(0);    }
+  75%      { opacity: 0.8; transform: scale(1.08) translateY(-1px); }
+  100%     { opacity: 0.4; transform: scale(1)    translateY(0);    }
 }
 
 /* ── Close Button ── */
