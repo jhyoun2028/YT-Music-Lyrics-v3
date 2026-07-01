@@ -93,13 +93,17 @@
   background: radial-gradient(42% 42% at 32% 28%, rgba(var(--aml-accent), 0.22) 0%, transparent 70%);
   filter: blur(60px);
   opacity: calc(0.55 + 0.35 * var(--aml-level));
-  animation: aml-aura 34s ease-in-out infinite alternate;
+  animation: aml-aura 42s ease-in-out infinite alternate;
   will-change: transform;
 }
 
+/* The single accent light wanders in a slow arc with a gentle rotation, so the
+   backdrop feels alive (the Apple-Music-style motion asked for) while staying
+   one soft hue — deliberately NOT the busy multi-color mesh. */
 @keyframes aml-aura {
-  0%   { transform: translate3d(0, 0, 0) scale(1); }
-  100% { transform: translate3d(7%, 5%, 0) scale(1.18); }
+  0%   { transform: translate3d(-2%, -1%, 0) scale(1)    rotate(0deg);  }
+  50%  { transform: translate3d(5%,  6%,  0) scale(1.14) rotate(5deg);  }
+  100% { transform: translate3d(8%,  2%,  0) scale(1.12) rotate(-4deg); }
 }
 
 
