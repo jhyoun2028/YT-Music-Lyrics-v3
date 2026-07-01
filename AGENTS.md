@@ -23,7 +23,10 @@ tests/               — zero-dep node:test suite (extracts pure fns from conten
 ### Features
 - Synced line- and word-level lyrics (word-level via CSS `animation-delay` scrubbing).
 - Per-song sync offset (`[` / `]` nudge, `\` reset), persisted per videoId.
-- Copy lyrics (`C`), font-size scaling (`−` / `+`, persisted), draggable scrubber.
+- Copy lyrics (`C`), export synced lyrics as `.lrc` (`E`), font-size scaling (`−` / `+`, persisted), draggable scrubber.
+- Korean romanization (`R` toggles): a Revised-Romanization reading under each Hangul
+  line, with liaison, palatalization, silent-ㅎ, nasalization, liquidization,
+  double-batchim liaison, and ㅎ-aspiration (`romanizeHangul`, all table-driven).
 - Loading screen while the source chain resolves; auto-rebuild on song auto-advance
   (via the bridge `videoId`, not just the DOM observer).
 - Sound-reactive background (`V` toggles; Web Audio bass energy → `--aml-level`
@@ -66,6 +69,8 @@ or the test extractor's name list is the source of truth):
 - `processSync` / `setActive` — the per-frame sync engine; `handleBridgeSongChange` — auto-advance rebuild.
 - `applyAccentColor` / `rgbToHsl` / `normalizeAccent` / `accentPalette` — album-art accent sampling.
 - `startAudioReactive` / `trySetupAudio` — gesture-safe Web Audio sound-reactive bg.
+- `romanizeHangul` / `hasHangul` — Korean Revised-Romanization (assimilation rules in the `RR_*` tables); `toggleRomanize` shows/hides the sub-lines.
+- `serializeLRC` / `lrcTimeTag` / `exportLRC` — build and download an `.lrc`; `copyLyricsToClipboard` / `lineLyricText` — copy (excludes the romanization sub-lines); `showToast` — transient feedback.
 - `isExtensionValid` — guard before any `chrome.*` call.
 
 ## Build / Lint / Test Commands
