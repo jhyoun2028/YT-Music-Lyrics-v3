@@ -35,6 +35,12 @@ test("romanizeHangul: batchim liaison before ㅇ (연음)", () => {
   assert.equal(romanizeHangul("사랑을"), "sarangeul");    // ㅇ(ng) does NOT move
 });
 
+test("romanizeHangul: palatalization (ㄷ/ㅌ+이) and silent ㅎ before a vowel", () => {
+  assert.equal(romanizeHangul("같이"), "gachi");   // ㅌ + 이 → chi
+  assert.equal(romanizeHangul("굳이"), "guji");    // ㄷ + 이 → ji
+  assert.equal(romanizeHangul("좋아"), "joa");     // ㅎ drops before a vowel
+});
+
 test("romanizeHangul: non-Hangul passes through; mixed lines work", () => {
   assert.equal(romanizeHangul("oh baby"), "oh baby");
   assert.equal(romanizeHangul("봐 oh"), "bwa oh");

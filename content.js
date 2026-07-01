@@ -102,9 +102,18 @@
       carry = "";
       var jong = tok[2];
       var next = toks[t + 1];
-      var liaise = jong && RR_LIAISON[jong] && next && typeof next !== "string" && next[0] === 11;
-      if (liaise) {
-        carry = RR_LIAISON[jong];
+      // next syllable begins with ㅇ (silent initial) → the final can carry over
+      var nextEum = next && typeof next !== "string" && next[0] === 11;
+      // ...and its vowel is i / iotized (ㅣㅑㅕㅛㅠㅖ) → triggers palatalization
+      var nm = nextEum ? next[1] : -1;
+      var iota = nm === 20 || nm === 2 || nm === 6 || nm === 12 || nm === 17 || nm === 7;
+      if (nextEum && iota && (jong === 7 || jong === 25)) {
+        carry = jong === 7 ? "j" : "ch";      // 굳이 → guji, 같이 → gachi
+        out += initial + RR_MEDIAL[tok[1]];
+      } else if (nextEum && jong === 27) {
+        out += initial + RR_MEDIAL[tok[1]];    // ㅎ before a vowel is silent: 좋아 → joa
+      } else if (nextEum && jong && RR_LIAISON[jong]) {
+        carry = RR_LIAISON[jong];              // 생각이 → saenggagi
         out += initial + RR_MEDIAL[tok[1]];
       } else {
         out += initial + RR_MEDIAL[tok[1]] + RR_FINAL[jong];
