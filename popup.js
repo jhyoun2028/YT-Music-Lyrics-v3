@@ -5,6 +5,7 @@ const status = document.getElementById("status");
 function updateUI(on) {
   toggle.checked = on;
   status.textContent = on ? "Active on YouTube Music" : "Paused";
+  status.classList.toggle("is-off", !on);
 }
 
 chrome.storage.local.get([STATE_KEY], (result) => {

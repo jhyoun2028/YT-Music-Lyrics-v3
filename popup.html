@@ -5,104 +5,133 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  :root { --accent: 250, 45, 72; } /* Apple Music red-pink signature */
+
   body {
-    width: 260px;
-    padding: 20px;
+    width: 292px;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
                  "Helvetica Neue", Arial, sans-serif;
-    background: #1a1a1a;
+    -webkit-font-smoothing: antialiased;
     color: #fff;
+    background:
+      radial-gradient(120% 80% at 50% -12%, rgba(var(--accent), 0.22) 0%, transparent 58%),
+      linear-gradient(180deg, #17171b 0%, #0d0d10 100%);
+    overflow: hidden;
   }
 
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 18px;
+  .wrap { padding: 20px 20px 16px; }
+
+  .header { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
+
+  .logo {
+    width: 34px; height: 34px; flex: none;
+    border-radius: 9px;
+    display: grid; place-items: center;
+    font-size: 17px; color: #fff;
+    background: linear-gradient(145deg, rgba(var(--accent), 0.95), rgba(var(--accent), 0.55));
+    box-shadow: 0 4px 14px rgba(var(--accent), 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   }
 
-  .header h1 {
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-  }
+  .titles h1 { font-size: 14px; font-weight: 640; letter-spacing: -0.01em; line-height: 1.2; }
+  .titles p { font-size: 11px; font-weight: 450; color: rgba(255, 255, 255, 0.42); margin-top: 2px; }
 
-  .header span {
-    font-size: 18px;
+  .card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 0 14px;
   }
 
   .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 0;
   }
+  .toggle-label { font-size: 13px; font-weight: 500; color: rgba(255, 255, 255, 0.9); }
 
-  .toggle-label {
-    font-size: 13px;
-    color: rgba(255,255,255,0.8);
-  }
-
-  .switch {
-    position: relative;
-    width: 44px;
-    height: 24px;
-    cursor: pointer;
-  }
-
+  .switch { position: relative; width: 46px; height: 26px; cursor: pointer; flex: none; }
   .switch input { opacity: 0; width: 0; height: 0; }
-
   .slider {
-    position: absolute;
-    inset: 0;
-    background: #444;
-    border-radius: 12px;
-    transition: background 0.25s ease;
+    position: absolute; inset: 0;
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 13px;
+    transition: background 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   }
-
   .slider::before {
-    content: "";
-    position: absolute;
-    width: 18px;
-    height: 18px;
-    left: 3px;
-    bottom: 3px;
-    background: #fff;
-    border-radius: 50%;
-    transition: transform 0.25s ease;
+    content: ""; position: absolute;
+    width: 20px; height: 20px; left: 3px; bottom: 3px;
+    background: #fff; border-radius: 50%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
   }
-
   .switch input:checked + .slider {
-    background: #fa2d48;
+    background: rgb(var(--accent));
+    box-shadow: 0 0 16px rgba(var(--accent), 0.5);
   }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
 
-  .switch input:checked + .slider::before {
-    transform: translateX(20px);
+  .shortcuts { margin-top: 16px; }
+  .shortcuts-title {
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.3); margin: 0 2px 9px;
+  }
+  .sc { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px; }
+  .sc-label { font-size: 12px; color: rgba(255, 255, 255, 0.62); }
+  .keys { display: flex; gap: 4px; }
+  kbd {
+    font-family: inherit; font-size: 10.5px; font-weight: 550;
+    min-width: 19px; text-align: center;
+    padding: 2px 6px; border-radius: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+    color: rgba(255, 255, 255, 0.82);
   }
 
   .status {
-    margin-top: 14px;
-    font-size: 11px;
-    color: rgba(255,255,255,0.35);
-    text-align: center;
+    margin-top: 15px; padding-top: 13px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 11px; color: rgba(255, 255, 255, 0.42); text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
   }
+  .status::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: rgb(var(--accent)); box-shadow: 0 0 8px rgba(var(--accent), 0.85);
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+  }
+  .status.is-off::before { background: rgba(255, 255, 255, 0.28); box-shadow: none; }
 </style>
 </head>
 <body>
-  <div class="header">
-    <span>&#9835;</span>
-    <h1>Apple-Style Lyrics</h1>
-  </div>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">&#9835;</div>
+      <div class="titles">
+        <h1>Apple-Style Lyrics</h1>
+        <p>Synced lyrics for YouTube Music</p>
+      </div>
+    </div>
 
-  <div class="toggle-row">
-    <span class="toggle-label">Enable styling</span>
-    <label class="switch">
-      <input type="checkbox" id="toggle" checked />
-      <span class="slider"></span>
-    </label>
-  </div>
+    <div class="card">
+      <div class="toggle-row">
+        <span class="toggle-label">Enable styling</span>
+        <label class="switch">
+          <input type="checkbox" id="toggle" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
 
-  <div class="status" id="status">Active on YouTube Music</div>
+    <div class="shortcuts">
+      <div class="shortcuts-title">Shortcuts</div>
+      <div class="sc"><span class="sc-label">Copy / export as .lrc</span><span class="keys"><kbd>C</kbd><kbd>E</kbd></span></div>
+      <div class="sc"><span class="sc-label">Romanize Korean</span><span class="keys"><kbd>R</kbd></span></div>
+      <div class="sc"><span class="sc-label">Sound-reactive background</span><span class="keys"><kbd>V</kbd></span></div>
+      <div class="sc"><span class="sc-label">Nudge / reset sync</span><span class="keys"><kbd>[</kbd><kbd>]</kbd><kbd>\</kbd></span></div>
+      <div class="sc"><span class="sc-label">Close overlay</span><span class="keys"><kbd>Esc</kbd></span></div>
+    </div>
+
+    <div class="status" id="status">Active on YouTube Music</div>
+  </div>
 
   <script src="popup.js"></script>
 </body>
