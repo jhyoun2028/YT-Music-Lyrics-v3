@@ -94,6 +94,13 @@ test("romanizeHangul: ㅎ aspiration (격음화)", () => {
   assert.equal(romanizeHangul("좋아"), "joa");       // ㅎ + ㅇ still silent (regression guard)
 });
 
+test("romanizeHangul: rules compose across realistic sequences", () => {
+  assert.equal(romanizeHangul("많이"), "mani");            // ㄶ+ㅇ → n, silent ㅎ
+  assert.equal(romanizeHangul("괜찮아"), "gwaenchana");    // ㄶ+ㅇ mid-word
+  assert.equal(romanizeHangul("좋은 날"), "joeun nal");    // silent ㅎ + space passthrough
+  assert.equal(romanizeHangul("싫었어"), "sireosseo");     // ㅀ liaison then ㅆ liaison chain
+});
+
 test("romanizeHangul: non-Hangul passes through; mixed lines work", () => {
   assert.equal(romanizeHangul("oh baby"), "oh baby");
   assert.equal(romanizeHangul("봐 oh"), "bwa oh");
