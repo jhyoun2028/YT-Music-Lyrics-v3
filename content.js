@@ -477,6 +477,9 @@
         timestamps.push(mins * 60 + secs + offsetMs / 1000);
         textPart = textPart.replace(match[0], "");
       }
+      // Strip enhanced-LRC per-word timing tags (<mm:ss.xx>) so they don't
+      // render as literal text; collapse the whitespace they leave behind.
+      textPart = textPart.replace(/<\d+:\d+(?:[.:]\d+)?>/g, "").replace(/\s{2,}/g, " ");
       var text = textPart.trim();
       for (var t = 0; t < timestamps.length; t++) {
         result.push({ time: timestamps[t], text: text });

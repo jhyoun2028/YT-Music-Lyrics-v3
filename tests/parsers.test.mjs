@@ -93,6 +93,13 @@ test("parseLRC: [offset:] shifts times (ms, positive = later)", () => {
   assert.equal(out[0].time, 10.5);
 });
 
+test("parseLRC: strips enhanced-LRC <mm:ss.xx> word tags from the text", () => {
+  const out = parseLRC("[00:01.00]<00:01.00>hello <00:01.50>world");
+  assert.equal(out.length, 1);
+  assert.equal(out[0].time, 1);
+  assert.equal(out[0].text, "hello world");
+});
+
 test("parseLRC: metadata tags are skipped", () => {
   const out = parseLRC("[ti:Song]\n[ar:Artist]\n[00:02.00]only this");
   assert.equal(out.length, 1);
