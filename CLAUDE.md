@@ -15,7 +15,9 @@ There is **no build step**. You develop by editing files and reloading the unpac
 1. `chrome://extensions` → enable Developer mode → "Load unpacked" → select this directory.
 2. After editing any file, click the reload icon on the extension card.
 3. Test on `music.youtube.com` (NOT regular `youtube.com`). Play a song; the overlay opens via the lyrics panel.
-4. Toggle the in-overlay debug HUD with **Shift+D** (gated behind `debugVisible`; verbose `[AML]` logs only print when it's on). Other shortcuts: **Esc** close, **`[`/`]`** nudge sync offset, **`\`** reset offset.
+4. Toggle the in-overlay debug HUD with **Shift+D** (gated behind `debugVisible`; verbose `[AML]` logs only print when it's on). Other shortcuts: **Esc** close, **`[`/`]`** nudge sync offset, **`\`** reset offset, **`C`** copy lyrics, **`−`/`+`** font size, **`V`** toggle sound-reactive background.
+
+**Design changes:** verify them in `preview/preview.html` — a dev-only harness that renders the overlay with mock lyrics + the real `lyrics.css` (serve the folder over http, e.g. `python3 -m http.server`, and open it; `?theme=warm|cool|mono|dark` checks the album-accent look across covers). It's not shipped.
 
 There is a **zero-dependency test suite** for the pure parser/sync helpers (Node's built-in `node:test`; no npm install required). `tests/extract.mjs` pulls functions straight out of `content.js` so tests track the real source.
 
