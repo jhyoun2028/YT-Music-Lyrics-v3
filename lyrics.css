@@ -275,11 +275,11 @@
 /* ── Active Line ── */
 
 .aml-line.aml-active {
-  font-size: calc(2.05rem * var(--aml-font-scale, 1));
-  font-weight: 700;
+  font-size: calc(2.2rem * var(--aml-font-scale, 1));
+  font-weight: 720;
   color: #ffffff;
   opacity: 1;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.028em;
   filter: blur(0px);
   text-shadow:
     0 0 32px rgba(255, 255, 255, 0.18),

@@ -1580,6 +1580,9 @@
       else if (diff === 1)  el.classList.add("aml-below-1");
       else if (diff === 2)  el.classList.add("aml-below-2");
       else if (diff > 2)    el.classList.add("aml-below-far");
+      // Screen readers announce the current line as it changes.
+      if (diff === 0) el.setAttribute("aria-current", "true");
+      else el.removeAttribute("aria-current");
     }
 
     if (useWordSync && prev >= 0 && prev < lines.length) {
