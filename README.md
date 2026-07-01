@@ -26,7 +26,9 @@ There is no build step — load the folder directly:
 3. Click **Load unpacked** and select this directory.
 4. Open [music.youtube.com](https://music.youtube.com), play a song, and open the lyrics panel. The overlay appears automatically.
 
-Use the toolbar popup to toggle the extension on/off. After editing any file, click the reload icon on the extension card.
+Click the toolbar icon to toggle the extension on/off; the popup also lists the in-overlay shortcuts. After editing any file, click the reload icon on the extension card.
+
+<img src="preview/popup.png" alt="Extension popup — on/off toggle and a shortcuts reference" width="300" />
 
 ## Keyboard shortcuts (while the overlay is open)
 
