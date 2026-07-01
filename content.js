@@ -76,6 +76,9 @@
   // (연음): 생각이 → saeng·ga·gi (not ...ki). Only clean single consonants;
   // ㅇ(ng), ㅎ, and clusters keep their plain final for simplicity.
   var RR_LIAISON = { 1: "g", 2: "kk", 4: "n", 7: "d", 8: "r", 16: "m", 17: "b", 19: "s", 20: "ss", 22: "j", 23: "ch", 24: "k", 25: "t", 26: "p" };
+  // Nasalization: an obstruent batchim before a ㄴ/ㅁ initial takes a nasal sound
+  // (ㄱ-type→ng, ㄷ-type→n, ㅂ-type→m): 국물→gungmul, 있는→inneun.
+  var RR_NASAL = { 1: "ng", 2: "ng", 3: "ng", 9: "ng", 24: "ng", 7: "n", 19: "n", 20: "n", 22: "n", 23: "n", 25: "n", 27: "n", 14: "m", 17: "m", 18: "m", 26: "m" };
 
   function hasHangul(s) {
     return /[가-힣]/.test(s || "");
@@ -115,6 +118,8 @@
       } else if (nextEum && jong && RR_LIAISON[jong]) {
         carry = RR_LIAISON[jong];              // 생각이 → saenggagi
         out += initial + RR_MEDIAL[tok[1]];
+      } else if (next && typeof next !== "string" && (next[0] === 2 || next[0] === 6) && RR_NASAL[jong]) {
+        out += initial + RR_MEDIAL[tok[1]] + RR_NASAL[jong];   // 국물 → gungmul
       } else {
         out += initial + RR_MEDIAL[tok[1]] + RR_FINAL[jong];
       }

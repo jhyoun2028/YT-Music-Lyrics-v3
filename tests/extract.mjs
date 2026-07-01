@@ -51,6 +51,7 @@ const constants = `
   var RR_MEDIAL = ["a","ae","ya","yae","eo","e","yeo","ye","o","wa","wae","oe","yo","u","wo","we","wi","yu","eu","ui","i"];
   var RR_FINAL = ["","k","k","k","n","n","n","t","l","k","m","l","l","l","p","l","m","p","p","t","t","ng","t","t","k","t","p","t"];
   var RR_LIAISON = { 1:"g",2:"kk",4:"n",7:"d",8:"r",16:"m",17:"b",19:"s",20:"ss",22:"j",23:"ch",24:"k",25:"t",26:"p" };
+  var RR_NASAL = { 1:"ng",2:"ng",3:"ng",9:"ng",24:"ng",7:"n",19:"n",20:"n",22:"n",23:"n",25:"n",27:"n",14:"m",17:"m",18:"m",26:"m" };
 `;
 
 const body =

@@ -41,6 +41,12 @@ test("romanizeHangul: palatalization (ㄷ/ㅌ+이) and silent ㅎ before a vowel
   assert.equal(romanizeHangul("좋아"), "joa");     // ㅎ drops before a vowel
 });
 
+test("romanizeHangul: nasalization of obstruent batchim before ㄴ/ㅁ", () => {
+  assert.equal(romanizeHangul("국물"), "gungmul");  // ㄱ before ㅁ → ng
+  assert.equal(romanizeHangul("있는"), "inneun");   // ㅆ(t) before ㄴ → n
+  assert.equal(romanizeHangul("안녕"), "annyeong"); // ㄴ final unaffected (regression guard)
+});
+
 test("romanizeHangul: non-Hangul passes through; mixed lines work", () => {
   assert.equal(romanizeHangul("oh baby"), "oh baby");
   assert.equal(romanizeHangul("봐 oh"), "bwa oh");
