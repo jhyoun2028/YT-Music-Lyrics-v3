@@ -2,7 +2,25 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import core from "./extract.mjs";
 
-const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette, mxmExtractSubtitleBody, hasHangul, romanizeHangul } = core;
+const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette, mxmExtractSubtitleBody, hasHangul, romanizeHangul, parseCubeyResponse } = core;
+
+test("parseCubeyResponse: normalizes each non-TTML branch (mxm / lrclib / plain)", () => {
+  const synced = "[00:01.00]a\n[00:02.00]b";
+  assert.deepEqual(
+    { s: parseCubeyResponse({ musixmatchSyncedLyrics: synced }).source, n: parseCubeyResponse({ musixmatchSyncedLyrics: synced }).parsed.length },
+    { s: "cubey-mxm", n: 2 }
+  );
+  assert.equal(parseCubeyResponse({ lrclibSyncedLyrics: synced }).source, "cubey-lrclib");
+  var plain = parseCubeyResponse({ lrclibPlainLyrics: "a longer plain lyric block" });
+  assert.equal(plain.source, "cubey-plain");
+  assert.equal(plain.type, "plain");
+});
+
+test("parseCubeyResponse: null/empty/too-short → null", () => {
+  assert.equal(parseCubeyResponse(null), null);
+  assert.equal(parseCubeyResponse({}), null);
+  assert.equal(parseCubeyResponse({ lrclibPlainLyrics: "short" }), null);   // ≤10 chars
+});
 
 test("romanizeHangul: per-syllable Revised Romanization", () => {
   assert.equal(romanizeHangul("사랑"), "sarang");

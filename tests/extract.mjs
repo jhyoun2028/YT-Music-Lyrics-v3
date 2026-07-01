@@ -39,6 +39,7 @@ const NAMES = [
   "mxmExtractSubtitleBody",
   "hasHangul",
   "romanizeHangul",
+  "parseCubeyResponse",
 ];
 
 // Constants these functions close over in content.js.
