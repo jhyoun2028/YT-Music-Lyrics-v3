@@ -31,6 +31,10 @@ const NAMES = [
   "candidateMatches",
   "insertInterludes",
   "remapWordDataIndices",
+  "cssUrl",
+  "normalizeAccent",
+  "hslToRgb",
+  "accentPalette",
 ];
 
 // Constants these functions close over in content.js.

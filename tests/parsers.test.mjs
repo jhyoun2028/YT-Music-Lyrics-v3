@@ -2,7 +2,36 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import core from "./extract.mjs";
 
-const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices } = core;
+const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette } = core;
+
+test("cssUrl: escapes quotes and backslashes so it can't break out of url()", () => {
+  assert.equal(cssUrl("https://x/a.png"), 'url("https://x/a.png")');
+  assert.equal(cssUrl('a").evil{'), 'url("a\\").evil{")');
+});
+
+test("hslToRgb: known anchors", () => {
+  assert.deepEqual(hslToRgb(0, 1, 0.5), [255, 0, 0]);
+  assert.deepEqual(hslToRgb(120, 1, 0.5), [0, 255, 0]);
+  assert.deepEqual(hslToRgb(240, 1, 0.5), [0, 0, 255]);
+});
+
+test("normalizeAccent: keeps a deep red rich (not washed to pink), pins luminance", () => {
+  const [r, g, b] = normalizeAccent(140, 20, 20);
+  assert.ok(r > g && r > b, "stays red-dominant");
+  assert.ok(r > 150, "vivid, not muddy");
+});
+
+test("normalizeAccent: near-gray input stays neutral (no invented hue)", () => {
+  const [r, g, b] = normalizeAccent(100, 100, 100);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  assert.ok(max - min <= 24, "stays near-neutral for a gray album");
+});
+
+test("accentPalette: returns 4 'r, g, b' triplets", () => {
+  const pal = accentPalette(230, 90, 140);
+  assert.equal(pal.length, 4);
+  for (const c of pal) assert.match(c, /^\d+, \d+, \d+$/);
+});
 
 test("parseLRC: basic timestamped lines, sorted", () => {
   const out = parseLRC("[00:10.00]world\n[00:05.00]hello");
