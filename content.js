@@ -1703,6 +1703,13 @@
     tEl.className = "aml-song-title";
     tEl.textContent = song.title;
     left.appendChild(tEl);
+    // Romanized title (shown with the lyrics romanization, when the title is Korean).
+    if (hasHangul(song.title)) {
+      var trEl = document.createElement("div");
+      trEl.className = "aml-roman aml-roman-title";
+      trEl.textContent = romanizeHangul(song.title);
+      left.appendChild(trEl);
+    }
     var aEl = document.createElement("div");
     aEl.className = "aml-song-artist";
     aEl.textContent = song.rawArtist || song.artist;

@@ -114,6 +114,11 @@
       mlines[mi].appendChild(rr);
     }
   }
+  var titleEl = document.querySelector(".aml-song-title");
+  if (titleEl && /[가-힣]/.test(titleEl.textContent)) {
+    var tr = document.createElement("div"); tr.className = "aml-roman aml-roman-title"; tr.textContent = rom(titleEl.textContent);
+    titleEl.parentNode.insertBefore(tr, titleEl.nextSibling);
+  }
   if (p.get("roman") === "1") ov.classList.add("aml-show-roman");
   // Offset/font controls are hover-only in the real overlay; force them visible
   // only for QA (?controls=1) so the default screenshot is a clean "resting" view.

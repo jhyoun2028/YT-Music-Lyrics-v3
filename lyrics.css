@@ -271,6 +271,14 @@
 .aml-show-roman .aml-roman { display: block; }
 /* On the active line the romanization is a touch brighter/clearer. */
 .aml-line.aml-active .aml-roman { opacity: 0.8; font-weight: 550; }
+/* Title romanization lives in the (centered) left panel, not a lyric line. */
+.aml-roman-title {
+  font-size: 0.78rem;
+  text-align: center;
+  margin-top: 3px;
+  max-width: 88%;
+  letter-spacing: 0.01em;
+}
 
 /* ── Active Line ── */
 
