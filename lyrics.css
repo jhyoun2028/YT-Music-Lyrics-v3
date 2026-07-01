@@ -956,6 +956,10 @@
     font-size: 0.78rem;
   }
 
+  /* The stacked header row is tight; the per-line romanization still shows, so
+     drop the redundant title romanization here to keep the header uncluttered. */
+  .aml-show-roman .aml-roman-title { display: none; }
+
   .aml-content {
     width: 100%;
     height: auto;
