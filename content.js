@@ -1526,24 +1526,35 @@
   function bumpFontScale(delta) { setFontScale(fontScale + delta); }
 
   // ── Copy lyrics to clipboard ────────────────────────────────────────────────
+  // The lyric text of a line, excluding the romanization sub-line (.aml-roman).
+  function lineLyricText(el) {
+    var s = "";
+    for (var n = 0; n < el.childNodes.length; n++) {
+      var ch = el.childNodes[n];
+      if (ch.nodeType === 1 && ch.className && ("" + ch.className).indexOf("aml-roman") !== -1) continue;
+      s += ch.textContent !== undefined ? ch.textContent : (ch.nodeValue || "");
+    }
+    return s.trim();
+  }
+
   function copyLyricsToClipboard() {
     if (!overlay) return;
     var lineEls = overlay.querySelectorAll(".aml-line:not(.aml-interlude):not(.aml-empty)");
     var parts = [];
     for (var i = 0; i < lineEls.length; i++) {
-      var tx = (lineEls[i].textContent || "").trim();
+      var tx = lineLyricText(lineEls[i]);
       if (tx) parts.push(tx);
     }
     if (!parts.length) return;
     var text = parts.join("\n");
     var btn = overlay.querySelector(".aml-tb-copy");
+    // Feedback via the class only — don't touch the button's contents (it holds
+    // an inline SVG icon that textContent would destroy).
     function flash(ok) {
       if (!btn) return;
-      btn.textContent = ok ? "✓" : "✕";
       btn.classList.add("aml-copied");
       setTimeout(function () {
         if (!btn) return;
-        btn.textContent = "⧉";
         btn.classList.remove("aml-copied");
       }, 1400);
     }
