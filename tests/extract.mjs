@@ -20,6 +20,16 @@ function extractFunction(name) {
   return src.slice(start, i);
 }
 
+// Pull a single-line `var NAME = <...>;` declaration verbatim from content.js so
+// the extracted functions close over the REAL constant values. This replaces a
+// hand-kept duplicate that had to be edited in lockstep with content.js (and
+// could silently drift, letting tests pass against stale tables).
+function extractVar(name) {
+  const m = src.match(new RegExp("\\bvar\\s+" + name + "\\s*=[^;]*;"));
+  if (!m) throw new Error("var not found in content.js: " + name);
+  return m[0];
+}
+
 const NAMES = [
   "parseLRC",
   "parseTTMLTime",
@@ -44,21 +54,14 @@ const NAMES = [
   "serializeLRC",
 ];
 
-// Constants these functions close over in content.js.
-const constants = `
-  var INTERLUDE_GAP = 10;
-  var INTERLUDE_MARKER = "\\u266a";
-  var MAX_DURATION_DIFF = 10;
-  var RR_INITIAL = ["g","kk","n","d","tt","r","m","b","pp","s","ss","","j","jj","ch","k","t","p","h"];
-  var RR_MEDIAL = ["a","ae","ya","yae","eo","e","yeo","ye","o","wa","wae","oe","yo","u","wo","we","wi","yu","eu","ui","i"];
-  var RR_FINAL = ["","k","k","k","n","n","n","t","l","k","m","l","l","l","p","l","m","p","p","t","t","ng","t","t","k","t","p","t"];
-  var RR_LIAISON = { 1:"g",2:"kk",4:"n",7:"d",8:"r",16:"m",17:"b",19:"s",20:"ss",22:"j",23:"ch",24:"k",25:"t",26:"p" };
-  var RR_NASAL = { 1:"ng",2:"ng",3:"ng",9:"ng",24:"ng",7:"n",19:"n",20:"n",22:"n",23:"n",25:"n",27:"n",14:"m",17:"m",18:"m",26:"m" };
-  var RR_DBL_LIAISON = { 5:["n","j"],9:["l","g"],10:["l","m"],11:["l","b"],15:["","r"] };
-  var RR_ASP_FWD = { 0:"k",3:"t",12:"ch",7:"p" };
-  var RR_ASP_BACK = { 1:"k",7:"t",17:"p",22:"ch",19:"t",20:"t" };
-  var RR_H_CLUSTER = { 6:"n",15:"l" };
-`;
+// Constants these functions close over in content.js — extracted from source,
+// not duplicated, so they can never drift from the real declarations.
+const CONST_NAMES = [
+  "INTERLUDE_GAP", "INTERLUDE_MARKER", "MAX_DURATION_DIFF",
+  "RR_INITIAL", "RR_MEDIAL", "RR_FINAL", "RR_LIAISON", "RR_NASAL",
+  "RR_DBL_LIAISON", "RR_ASP_FWD", "RR_ASP_BACK", "RR_H_CLUSTER",
+];
+const constants = CONST_NAMES.map(extractVar).join("\n");
 
 const body =
   '"use strict";' +
