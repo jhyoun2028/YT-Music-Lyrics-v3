@@ -57,6 +57,7 @@ const constants = `
   var RR_DBL_LIAISON = { 5:["n","j"],9:["l","g"],10:["l","m"],11:["l","b"],15:["","r"] };
   var RR_ASP_FWD = { 0:"k",3:"t",12:"ch",7:"p" };
   var RR_ASP_BACK = { 1:"k",7:"t",17:"p",22:"ch" };
+  var RR_H_CLUSTER = { 6:"n",15:"l" };
 `;
 
 const body =

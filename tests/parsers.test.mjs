@@ -94,6 +94,15 @@ test("romanizeHangul: ㅎ aspiration (격음화)", () => {
   assert.equal(romanizeHangul("좋아"), "joa");       // ㅎ + ㅇ still silent (regression guard)
 });
 
+test("romanizeHangul: ㅎ-cluster batchim (ㄶ/ㅀ) aspirates a following stop", () => {
+  assert.equal(romanizeHangul("많다"), "manta");       // ㄶ + ㄷ → n + t
+  assert.equal(romanizeHangul("않고"), "anko");        // ㄶ + ㄱ → n + k
+  assert.equal(romanizeHangul("싫다"), "silta");       // ㅀ + ㄷ → l + t
+  assert.equal(romanizeHangul("괜찮다"), "gwaenchanta"); // ㄶ mid-word + ㄷ
+  assert.equal(romanizeHangul("많아"), "mana");        // ㄶ + ㅇ still liaises to n (regression)
+  assert.equal(romanizeHangul("싫어"), "sireo");       // ㅀ + ㅇ still ㄹ-liaison (regression)
+});
+
 test("romanizeHangul: rules compose across realistic sequences", () => {
   assert.equal(romanizeHangul("많이"), "mani");            // ㄶ+ㅇ → n, silent ㅎ
   assert.equal(romanizeHangul("괜찮아"), "gwaenchana");    // ㄶ+ㅇ mid-word
