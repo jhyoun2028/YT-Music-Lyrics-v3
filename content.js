@@ -89,7 +89,7 @@
   // 좋지 jochi, 축하 chuka, 급히 geupi. RR_ASP_FWD keys are the *next initial*'s
   // index; RR_ASP_BACK keys are this syllable's *final* index.
   var RR_ASP_FWD = { 0: "k", 3: "t", 12: "ch", 7: "p" };
-  var RR_ASP_BACK = { 1: "k", 7: "t", 17: "p", 22: "ch" };
+  var RR_ASP_BACK = { 1: "k", 7: "t", 17: "p", 22: "ch", 19: "t", 20: "t" };
   // ㅎ-cluster batchim (ㄶ/ㅀ) before ㄱ/ㄷ/ㅈ: the ㅎ aspirates the following stop
   // while the ㄴ/ㄹ survives as this syllable's final — 많다 manta, 싫다 silta,
   // 않고 anko, 괜찮다 gwaenchanta. Value is the surviving final's sound.
