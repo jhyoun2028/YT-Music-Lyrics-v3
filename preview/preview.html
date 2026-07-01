@@ -133,6 +133,27 @@
     ov.appendChild(nmsg);
   }
 
+  // ?karaoke=1 — split the active line into .aml-word spans and stage a mid-wipe
+  // frame (leading words sung, one mid-sweep, trailing unsung) so the word-level
+  // karaoke gradient can be visually checked. Mirrors the CSS-driven wipe, which
+  // otherwise only runs live with per-word timing from the extension.
+  if (p.get("karaoke") === "1") {
+    var act = document.querySelector(".aml-line.aml-active");
+    if (act) {
+      var words = act.textContent.split(" ");
+      act.textContent = "";
+      for (var wi = 0; wi < words.length; wi++) {
+        var w = document.createElement("span");
+        w.className = "aml-word";
+        w.textContent = words[wi];
+        var frac = wi / words.length;
+        w.style.backgroundPosition = (frac < 0.4 ? "0%" : (frac < 0.58 ? "50%" : "100%")) + " 0";
+        act.appendChild(w);
+        if (wi < words.length - 1) act.appendChild(document.createTextNode(" "));
+      }
+    }
+  }
+
   // Romanization sub-lines (mirrors content.js romanizeHangul) — ?roman=1 shows them.
   var RI = ["g","kk","n","d","tt","r","m","b","pp","s","ss","","j","jj","ch","k","t","p","h"];
   var RM = ["a","ae","ya","yae","eo","e","yeo","ye","o","wa","wae","oe","yo","u","wo","we","wi","yu","eu","ui","i"];
