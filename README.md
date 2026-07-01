@@ -53,6 +53,15 @@ Two content scripts run in different JS worlds and talk over `window.postMessage
 
 Word-level highlighting is CSS-driven (per-word `animation-delay` scrubbing), so the compositor does the work rather than per-frame JavaScript. See `AGENTS.md` for the deep dive.
 
+## Troubleshooting
+
+- **The overlay doesn't appear.** Make sure you're on **music**.youtube.com (not regular youtube.com), a song is actually playing, and you've opened the song's lyrics panel — the overlay opens from there. If you just edited the code, click the reload icon on the extension card in `chrome://extensions`.
+- **Wrong song's lyrics.** The extension checks that a result's title **and** artist loosely match what's playing and rejects mismatches, but an obscure or mislabelled track can still slip through. It re-runs on every song change, so skipping away and back usually clears it; you can also nudge with a manual search upstream. Sync offset is per-song (`[` / `]`, reset `\`).
+- **Lyrics take a moment to load.** Sources are tried in order (Binimum → Musixmatch → lrclib → Cubey) and each has a hard timeout, so a slow or missing source falls through rather than hanging. Results are cached per song, so returning to a track is instant.
+- **The sound-reactive background isn't moving.** Web Audio needs a user gesture to start — click anywhere in the page once — and the effect is toggled with **V**.
+- **Romanization isn't showing.** Press **R**; a romanized reading appears under each Korean line (and the title).
+- **Nothing updates after I change a file.** Reload the extension (`chrome://extensions` → reload icon), then reload the YouTube Music tab.
+
 ## Privacy
 
 The extension sends the **song title, artist, and duration** to the lyric providers above to look up lyrics, and reads the current track/time from the YouTube Music player. It stores small preferences locally (sync offset, text size, toggles, and a cached Musixmatch/Cubey token). No analytics, no accounts, no data sent anywhere else.
