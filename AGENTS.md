@@ -9,12 +9,30 @@ Raw vanilla JS — no TypeScript, no bundler, no framework. Load via `chrome://e
 
 ```
 manifest.json        — MV3 config, permissions, content script registration
-content.js           — Main extension logic (ISOLATED world, 1429 lines IIFE)
-playerBridge.js      — YTM player API bridge (MAIN world, 59 lines)
+content.js           — Main extension logic (ISOLATED world, single IIFE ~2.5k lines)
+playerBridge.js      — YTM player API bridge (MAIN world, ~70 lines)
 lyrics.css           — Full-screen overlay UI (Apple Music aesthetic)
 popup.html / popup.js — Extension popup toggle (ON/OFF, modern JS OK here)
 icons/               — Extension icons (16/48/128)
+preview/preview.html — DEV-ONLY visual harness (renders the overlay with mock
+                       lyrics + real lyrics.css for screenshot-based design work;
+                       not shipped, extension never references it)
+tests/               — zero-dep node:test suite (extracts pure fns from content.js)
 ```
+
+### Features
+- Synced line- and word-level lyrics (word-level via CSS `animation-delay` scrubbing).
+- Per-song sync offset (`[` / `]` nudge, `\` reset), persisted per videoId.
+- Copy lyrics (`C`), font-size scaling (`−` / `+`, persisted), draggable scrubber.
+- Loading screen while the source chain resolves; auto-rebuild on song auto-advance
+  (via the bridge `videoId`, not just the DOM observer).
+- Sound-reactive background (`V` toggles; Web Audio bass energy → `--aml-level`
+  drives the blurred album backdrop's brightness/scale; gesture-safe so it can't
+  mute playback; default on).
+- Per-song accent color sampled from album art (`--aml-accent`), used for the
+  active-line glow, album halo, and toolbar.
+- Match verification (`normMatch`/`looseMatch`/`candidateMatches`) rejects
+  wrong-song results; `getTitleVariations` widens matching for bilingual (KR) titles.
 
 ### Content Script Worlds
 - `content.js` runs in **ISOLATED** world — no direct access to page JS
@@ -39,18 +57,16 @@ returning to a song skips the network. Negative results are **not** cached
 currently wired into the chain.
 
 ### Key Functions (content.js)
-| Function | Line | Purpose |
-|---|---|---|
-| `parseLRC` | 126 | Parse LRC format lyrics |
-| `cubeyFetchLyrics` | 219 | Cubey API fetcher |
-| `parseTTML` | 268 | Parse TTML format lyrics |
-| `mxmFetchLyrics` | 462 | Musixmatch API fetcher |
-| `fetchSyncedLyrics` | 477 | lrclib.net fetcher |
-| `buildOverlay` | 854 | Build full-screen lyrics overlay DOM |
-| `showWithSyncedLyrics` | 1170 | Display synced lyrics with parsed data |
-| `tryShowLyrics` | 1226 | Main entry: fallback chain orchestrator |
-| `tryPlainLyrics` | 1296 | YTM built-in plain text fallback |
-| `isExtensionValid` | 1406 | Guard for chrome.runtime validity |
+Reference by name, not line number (the single file shifts constantly; `grep -n`
+or the test extractor's name list is the source of truth):
+- `tryShowLyrics` — main entry; walks the `LYRICS_SOURCES` chain, cache-first.
+- `binimumFetchLyrics` / `mxmFetchLyrics` / `fetchSyncedLyrics` / `cubeyFetchLyrics` — source fetchers (all via `fetchT`, the timeout wrapper).
+- `parseLRC` / `parseTTML` / `parseTTMLTime` / `parseCubeyResponse` — parsers.
+- `buildOverlay` — builds the overlay DOM; `showWithSyncedLyrics` / `showWithPlainLyrics` / `showNoLyrics` render; `showLoadingOverlay` is the pre-fetch spinner.
+- `processSync` / `setActive` — the per-frame sync engine; `handleBridgeSongChange` — auto-advance rebuild.
+- `applyAccentColor` / `rgbToHsl` / `normalizeAccent` / `accentPalette` — album-art accent sampling.
+- `startAudioReactive` / `trySetupAudio` — gesture-safe Web Audio sound-reactive bg.
+- `isExtensionValid` — guard before any `chrome.*` call.
 
 ## Build / Lint / Test Commands
 
@@ -67,8 +83,13 @@ npm test            # runs tests/*.test.mjs via `node --test`
 node --check content.js   # quick syntax check (no browser needed)
 ```
 
-### CI Note
-`.github/workflows/Build.yml` references `npm run typecheck` and `npm run build`, but those apply to the upstream repo with a bundler. This local directory has no such tooling.
+### CI
+The inherited `.github/workflows/*` are upstream (rspack/biome build → multi-
+browser dist, Cloudflare sourcemaps) and do **not** apply to this unbundled fork —
+`Build.yml` would fail (`npm run typecheck`/`build` don't exist here). Recommended
+replacement: a minimal workflow running `node --check content.js playerBridge.js
+popup.js` + `npm test`. (Committing workflow changes needs a `workflow`-scoped
+token, so it isn't applied here yet.)
 
 ### Formatting
 - **Biome** is the default formatter (`.vscode/settings.json`)
@@ -155,10 +176,12 @@ if (!isExtensionValid()) { resolve(null); return; }
 ```
 
 ### Adding New UI Elements
-1. Create element with `document.createElement`
+1. Create element with `document.createElement` (never `innerHTML` — the XSS
+   posture depends on `textContent`/`createElement` only).
 2. Set class with `aml-` prefix
-3. Add to overlay in `buildOverlay()` (line 854)
-4. Add corresponding CSS in `lyrics.css`
+3. Add to overlay in `buildOverlay()`
+4. Add corresponding CSS in `lyrics.css`; verify it in `preview/preview.html`
+   (serve the dir over http and open it — `file://` is blocked in some browsers).
 
 ## Common Pitfalls
 - **No ES6+ in content.js/playerBridge.js** — no transpiler available
