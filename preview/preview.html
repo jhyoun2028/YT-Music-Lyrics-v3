@@ -1,0 +1,79 @@
+<!doctype html>
+<!-- Dev-only visual harness for lyrics.css. Renders the overlay DOM that
+     content.js builds, with mock lyrics + a mock album cover, so the design can
+     be screenshotted and iterated without loading the extension on YTM.
+     Not shipped; the extension never references this file. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="../lyrics.css" />
+<style>
+  html, body { margin: 0; height: 100%; background: #000; }
+</style>
+</head>
+<body>
+<div class="aml-overlay aml-visible aml-playing"
+     style="--aml-accent: 255, 96, 148; --aml-c1: 255,96,148; --aml-c2: 120,110,255; --aml-c3: 255,150,90; --aml-c4: 90,180,255; --aml-level: 0;">
+
+  <div class="aml-bg-tint"
+       style="background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff8a3d'/%3E%3Cstop offset='0.5' stop-color='%23ff3d7f'/%3E%3Cstop offset='1' stop-color='%236a3dff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='500' height='500' fill='url(%23g)'/%3E%3C/svg%3E&quot;);"></div>
+  <div class="aml-mesh"></div>
+
+  <div class="aml-left">
+    <img class="aml-album-art" alt=""
+         src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='500'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff8a3d'/%3E%3Cstop offset='0.5' stop-color='%23ff3d7f'/%3E%3Cstop offset='1' stop-color='%236a3dff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='500' height='500' fill='url(%23g)'/%3E%3Ccircle cx='250' cy='250' r='120' fill='rgba(255,255,255,0.15)'/%3E%3C/svg%3E" />
+    <div class="aml-song-title">사랑인가 봐</div>
+    <div class="aml-song-artist">멜로망스 · Melomance</div>
+  </div>
+
+  <div class="aml-content">
+    <div class="aml-lines-wrapper" style="transform: translateY(-120px);">
+      <div class="aml-spacer"></div>
+      <div class="aml-line aml-above-far">이 노래를 듣고 있으면</div>
+      <div class="aml-line aml-above-3">자꾸만 생각이 나</div>
+      <div class="aml-line aml-above-2">너와 함께 걷던 그 길이</div>
+      <div class="aml-line aml-above-1">아직도 눈에 선한데</div>
+      <div class="aml-line aml-active">이게 사랑인가 봐 oh baby</div>
+      <div class="aml-line aml-below-1">자꾸 웃음이 나 나도 몰래</div>
+      <div class="aml-line aml-below-2">You're the one that I want</div>
+      <div class="aml-line aml-interlude aml-below-far"></div>
+      <div class="aml-line aml-below-far">밤하늘의 별처럼</div>
+      <div class="aml-line">네 곁에 머물고 싶어</div>
+      <div class="aml-spacer"></div>
+    </div>
+  </div>
+
+  <button class="aml-close" aria-label="Close">×</button>
+
+  <div class="aml-offset-controls" style="opacity:1;">
+    <button class="aml-offset-btn">−0.1s</button>
+    <span class="aml-offset-display">+0ms</span>
+    <button class="aml-offset-btn">+0.1s</button>
+    <span class="aml-ctrl-sep"></span>
+    <button class="aml-offset-btn">A−</button>
+    <span class="aml-offset-display aml-font-display">100%</span>
+    <button class="aml-offset-btn">A+</button>
+  </div>
+
+  <div class="aml-toolbar">
+    <div class="aml-toolbar-inner">
+      <div class="aml-toolbar-controls">
+        <button class="aml-tb-btn aml-tb-prev"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h2v12H7zm3 6l9 6V6z" fill="currentColor"></path></svg></button>
+        <button class="aml-tb-btn aml-tb-play"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h3.5v14H6zM14.5 5H18v14h-3.5z" fill="currentColor"></path></svg></button>
+        <button class="aml-tb-btn aml-tb-next"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6h2v12h-2zM5 6v12l9-6z" fill="currentColor"></path></svg></button>
+      </div>
+      <div class="aml-toolbar-scrub">
+        <span class="aml-tb-time aml-tb-elapsed">1:32</span>
+        <div class="aml-toolbar-progress"><div class="aml-toolbar-progress-fill" style="width:46%;"></div></div>
+        <span class="aml-tb-time aml-tb-duration">3:21</span>
+      </div>
+      <div class="aml-toolbar-right">
+        <button class="aml-tb-btn aml-tb-copy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-4M4 10h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
