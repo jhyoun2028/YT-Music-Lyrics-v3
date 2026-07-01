@@ -290,7 +290,9 @@
 }
 .aml-show-roman .aml-roman { display: block; }
 /* On the active line the romanization is a touch brighter/clearer. */
-.aml-line.aml-active .aml-roman { opacity: 0.8; font-weight: 550; }
+/* On the active line (2.2rem), 0.5em romanization renders ~1.1rem and competes
+   with the adjacent 1.65rem lyric lines; shrink it so it clearly subordinates. */
+.aml-line.aml-active .aml-roman { font-size: 0.43em; margin-top: 2px; opacity: 0.75; font-weight: 550; }
 /* Title romanization lives in the (centered) left panel, not a lyric line. */
 .aml-roman-title {
   font-size: 0.78rem;
@@ -384,8 +386,10 @@
 .aml-line.aml-below-far {
   font-size: calc(1.45rem * var(--aml-font-scale, 1));
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.24);
-  opacity: 0.5;
+  /* Upcoming lines stay more legible than past ones (deliberate), but the old
+     0.24×0.5 made below-far ~6× brighter than above-far — bottom-heavy. Now ~3×. */
+  color: rgba(255, 255, 255, 0.16);
+  opacity: 0.42;
   filter: blur(1.3px);
 }
 
@@ -1036,7 +1040,7 @@
    lockstep with the audio (a clean karaoke wipe — no bounce, no glow). */
 .aml-line.aml-active .aml-word {
   --aml-sung: #ffffff;
-  --aml-unsung: rgba(255, 255, 255, 0.30);
+  --aml-unsung: rgba(255, 255, 255, 0.22);
   background-image: linear-gradient(
     90deg,
     var(--aml-sung) 0%, var(--aml-sung) 46%,
