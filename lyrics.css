@@ -257,6 +257,21 @@
   pointer-events: none;
 }
 
+/* ── Romanization sub-line (Korean → RR; shown only when .aml-show-roman) ── */
+.aml-roman {
+  display: none;
+  font-size: 0.5em;          /* relative to the line, so it scales with proximity */
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  margin-top: 4px;
+  opacity: 0.62;
+  text-shadow: none;
+}
+.aml-show-roman .aml-roman { display: block; }
+/* On the active line the romanization is a touch brighter/clearer. */
+.aml-line.aml-active .aml-roman { opacity: 0.8; font-weight: 550; }
+
 /* ── Active Line ── */
 
 .aml-line.aml-active {

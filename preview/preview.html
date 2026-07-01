@@ -98,6 +98,21 @@
   if (p.get("state") === "paused") ov.classList.remove("aml-playing");
   document.getElementById("bg").style.backgroundImage = "url(\"" + svg(false) + "\")";
   document.getElementById("art").src = svg(true);
+
+  // Romanization sub-lines (mirrors content.js romanizeHangul) — ?roman=1 shows them.
+  var RI = ["g","kk","n","d","tt","r","m","b","pp","s","ss","","j","jj","ch","k","t","p","h"];
+  var RM = ["a","ae","ya","yae","eo","e","yeo","ye","o","wa","wae","oe","yo","u","wo","we","wi","yu","eu","ui","i"];
+  var RF = ["","k","k","k","n","n","n","t","l","k","m","l","l","l","p","l","m","p","p","t","t","ng","t","t","k","t","p","t"];
+  function rom(t){var o="";for(var i=0;i<t.length;i++){var c=t.charCodeAt(i);if(c>=0xAC00&&c<=0xD7A3){var x=c-0xAC00;o+=RI[Math.floor(x/588)]+RM[Math.floor((x%588)/28)]+RF[x%28];}else o+=t.charAt(i);}return o;}
+  var mlines = document.querySelectorAll(".aml-line:not(.aml-interlude):not(.aml-empty)");
+  for (var mi = 0; mi < mlines.length; mi++) {
+    var txt = mlines[mi].textContent;
+    if (/[가-힣]/.test(txt)) {
+      var rr = document.createElement("div"); rr.className = "aml-roman"; rr.textContent = rom(txt);
+      mlines[mi].appendChild(rr);
+    }
+  }
+  if (p.get("roman") === "1") ov.classList.add("aml-show-roman");
 </script>
 </body>
 </html>

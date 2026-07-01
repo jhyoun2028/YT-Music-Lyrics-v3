@@ -37,6 +37,8 @@ const NAMES = [
   "hslToRgb",
   "accentPalette",
   "mxmExtractSubtitleBody",
+  "hasHangul",
+  "romanizeHangul",
 ];
 
 // Constants these functions close over in content.js.
@@ -44,6 +46,9 @@ const constants = `
   var INTERLUDE_GAP = 10;
   var INTERLUDE_MARKER = "\\u266a";
   var MAX_DURATION_DIFF = 10;
+  var RR_INITIAL = ["g","kk","n","d","tt","r","m","b","pp","s","ss","","j","jj","ch","k","t","p","h"];
+  var RR_MEDIAL = ["a","ae","ya","yae","eo","e","yeo","ye","o","wa","wae","oe","yo","u","wo","we","wi","yu","eu","ui","i"];
+  var RR_FINAL = ["","k","k","k","n","n","n","t","l","k","m","l","l","l","p","l","m","p","p","t","t","ng","t","t","k","t","p","t"];
 `;
 
 const body =

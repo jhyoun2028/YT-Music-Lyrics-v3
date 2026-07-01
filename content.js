@@ -63,6 +63,37 @@
     return 'url("' + String(u).replace(/["\\]/g, "\\$&") + '")';
   }
 
+  // ── Hangul romanization (Revised Romanization, per-syllable) ────────────────
+  // Deterministic, dictionary-free: decompose each Hangul syllable into
+  // initial/medial/final jamo and map to romaji. Non-Hangul (Latin, spaces,
+  // punctuation) passes through unchanged. Approximate — no cross-syllable
+  // assimilation/liaison — but very usable for singing along (the K-pop use case).
+  var RR_INITIAL = ["g", "kk", "n", "d", "tt", "r", "m", "b", "pp", "s", "ss", "", "j", "jj", "ch", "k", "t", "p", "h"];
+  var RR_MEDIAL = ["a", "ae", "ya", "yae", "eo", "e", "yeo", "ye", "o", "wa", "wae", "oe", "yo", "u", "wo", "we", "wi", "yu", "eu", "ui", "i"];
+  var RR_FINAL = ["", "k", "k", "k", "n", "n", "n", "t", "l", "k", "m", "l", "l", "l", "p", "l", "m", "p", "p", "t", "t", "ng", "t", "t", "k", "t", "p", "t"];
+
+  function hasHangul(s) {
+    return /[가-힣]/.test(s || "");
+  }
+
+  function romanizeHangul(text) {
+    if (!text) return "";
+    var out = "";
+    for (var i = 0; i < text.length; i++) {
+      var code = text.charCodeAt(i);
+      if (code >= 0xAC00 && code <= 0xD7A3) {
+        var idx = code - 0xAC00;
+        var cho = Math.floor(idx / 588);
+        var jung = Math.floor((idx % 588) / 28);
+        var jong = idx % 28;
+        out += RR_INITIAL[cho] + RR_MEDIAL[jung] + RR_FINAL[jong];
+      } else {
+        out += text.charAt(i);
+      }
+    }
+    return out;
+  }
+
   // Sample a vibrant-ish accent color from the album art and expose it as the
   // --aml-accent CSS variable (an "R, G, B" triplet). Cross-origin art can taint
   // the canvas; if reading pixels throws we silently keep the white default.
@@ -192,6 +223,9 @@
   var audioReactive = true;
   var audioCtx = null, audioSrc = null, audioAnalyser = null, audioFreq = null;
   var audioRafId = null, audioSourceFailed = false, audioSmoothed = 0;
+  // Romanization of Korean lyrics — off by default, toggled with "R", persisted.
+  var romanizeOn = false;
+  try { romanizeOn = localStorage.getItem("aml_romanize") === "1"; } catch (e) { }
   try { audioReactive = localStorage.getItem("aml_audio_reactive") !== "0"; } catch (e) { }
 
   function audioSetLevel(v) {
@@ -288,6 +322,20 @@
     else stopAudioReactive();
     if (audioReactive && audioSourceFailed) showToast("사운드 반응 사용 불가 (브라우저 차단)");
     else showToast(audioReactive ? "사운드 반응 켜짐" : "사운드 반응 꺼짐");
+  }
+
+  function toggleRomanize() {
+    romanizeOn = !romanizeOn;
+    try { localStorage.setItem("aml_romanize", romanizeOn ? "1" : "0"); } catch (e) { }
+    if (overlay) {
+      if (romanizeOn) overlay.classList.add("aml-show-roman");
+      else overlay.classList.remove("aml-show-roman");
+      // Line heights changed — re-cache offsets and re-anchor the active line.
+      cacheLinePositions();
+      var keep = activeIndex;
+      if (keep >= 0) { activeIndex = -1; setActive(keep); }
+    }
+    showToast(romanizeOn ? "로마자 켜짐" : "로마자 꺼짐");
   }
 
   var toastTimer = null;
@@ -1589,6 +1637,7 @@
     overlay.className = "aml-overlay";
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-label", "Synced lyrics");
+    if (romanizeOn) overlay.classList.add("aml-show-roman");
     applyAccentColor(overlay, artUrl);
     fontScale = loadFontScale();
     overlay.style.setProperty("--aml-font-scale", String(fontScale));
@@ -1662,6 +1711,15 @@
           }
         } else {
           div.textContent = lineText;
+        }
+        // Romanization sub-line for Korean lyrics (hidden unless the overlay has
+        // .aml-show-roman; toggled with "R"). Appended AFTER the lyric content so
+        // the textContent assignments above don't wipe it.
+        if (!isInterlude && lineText && hasHangul(lineText)) {
+          var rom = document.createElement("div");
+          rom.className = "aml-roman";
+          rom.textContent = romanizeHangul(lineText);
+          div.appendChild(rom);
         }
         div.addEventListener("click", function () {
           setActive(idx);
@@ -1750,7 +1808,7 @@
     if (hintSeen < 6) {
       var hint = document.createElement("div");
       hint.className = "aml-hint";
-      var hintParts = [["Esc", " close"], ["[ ]", " sync"], ["C", " copy"], ["− +", " size"], ["V", " bg"]];
+      var hintParts = [["Esc", " close"], ["[ ]", " sync"], ["C", " copy"], ["− +", " size"], ["V", " bg"], ["R", " roman"]];
       for (var hp = 0; hp < hintParts.length; hp++) {
         if (hp > 0) hint.appendChild(document.createTextNode("   ·   "));
         var kb = document.createElement("kbd");
@@ -2440,6 +2498,7 @@
     else if (e.key === "-" || e.key === "_") { e.preventDefault(); bumpFontScale(-FONT_SCALE_STEP); }
     else if (e.key === "=" || e.key === "+") { e.preventDefault(); bumpFontScale(FONT_SCALE_STEP); }
     else if (e.key === "v" || e.key === "V") { e.preventDefault(); toggleAudioReactive(); }
+    else if (e.key === "r" || e.key === "R") { e.preventDefault(); toggleRomanize(); }
   });
 
   function isExtensionValid() {

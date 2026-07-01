@@ -2,7 +2,27 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import core from "./extract.mjs";
 
-const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette, mxmExtractSubtitleBody } = core;
+const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette, mxmExtractSubtitleBody, hasHangul, romanizeHangul } = core;
+
+test("romanizeHangul: per-syllable Revised Romanization", () => {
+  assert.equal(romanizeHangul("사랑"), "sarang");
+  assert.equal(romanizeHangul("노래"), "norae");
+  assert.equal(romanizeHangul("안녕"), "annyeong");
+  assert.equal(romanizeHangul("이게"), "ige");
+});
+
+test("romanizeHangul: non-Hangul passes through; mixed lines work", () => {
+  assert.equal(romanizeHangul("oh baby"), "oh baby");
+  assert.equal(romanizeHangul("봐 oh"), "bwa oh");
+  assert.equal(romanizeHangul(""), "");
+});
+
+test("hasHangul: detects Hangul syllables", () => {
+  assert.ok(hasHangul("사랑해"));
+  assert.ok(hasHangul("mixed 사랑"));
+  assert.ok(!hasHangul("just latin"));
+  assert.ok(!hasHangul(""));
+});
 
 test("mxmExtractSubtitleBody: pulls the subtitle body from the nested macro shape", () => {
   const body = "[00:01.00]hi";
