@@ -143,7 +143,12 @@
         carry = RR_ASP_FWD[nextIni];           // 좋고 → joko, 좋다 → jota, 좋지 → jochi
         out += body;
       } else if (nextIni === 18 && RR_ASP_BACK[jong]) {
-        carry = RR_ASP_BACK[jong];             // 축하 → chuka, 급히 → geupi
+        var asp = RR_ASP_BACK[jong];
+        // The aspirated ㅌ further palatalizes to ch before an i/iotized vowel:
+        // 굳히다 → guchida, 묻히다 → muchida (not ...tida).
+        var nmed = next[1];
+        var aspPal = nmed === 20 || nmed === 2 || nmed === 6 || nmed === 12 || nmed === 17 || nmed === 7;
+        carry = (asp === "t" && aspPal) ? "ch" : asp;   // 축하 → chuka, 급히 → geupi
         out += body;
       } else if (RR_H_CLUSTER[jong] && RR_ASP_FWD[nextIni]) {
         out += body + RR_H_CLUSTER[jong];      // ㄶ/ㅀ + ㄱ/ㄷ/ㅈ: 많다 → manta, 싫다 → silta

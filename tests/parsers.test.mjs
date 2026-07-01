@@ -94,6 +94,9 @@ test("romanizeHangul: ㅎ aspiration (격음화)", () => {
   assert.equal(romanizeHangul("못해"), "motae");     // ㅅ(→t) + ㅎ → t
   assert.equal(romanizeHangul("못한"), "motan");     // ㅅ(→t) + ㅎ → t
   assert.equal(romanizeHangul("옷 한"), "ot han");   // no aspiration across a space
+  assert.equal(romanizeHangul("굳히다"), "guchida"); // ㄷ+ㅎ→ㅌ then ㅌ+ㅣ→ch
+  assert.equal(romanizeHangul("묻히다"), "muchida"); // aspiration + palatalization
+  assert.equal(romanizeHangul("급히"), "geupi");     // ㅂ+ㅎ→ㅍ before ㅣ does NOT palatalize (guard)
   assert.equal(romanizeHangul("좋아"), "joa");       // ㅎ + ㅇ still silent (regression guard)
 });
 
