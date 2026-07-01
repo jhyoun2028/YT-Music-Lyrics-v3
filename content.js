@@ -69,11 +69,10 @@
   // Purely additive — never propagates an error.
   // Pin a sampled RGB into a glow-friendly band while preserving its hue, so the
   // accent reads as the album's actual color (rich), not a washed pastel.
-  function normalizeAccent(r, g, b) {
+  function rgbToHsl(r, g, b) {
     r /= 255; g /= 255; b /= 255;
-    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
     var h = 0, s = 0, l = (max + min) / 2;
-    var d = max - min;
     if (d !== 0) {
       s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
       if (max === r) h = ((g - b) / d) % 6;
@@ -81,27 +80,18 @@
       else h = (r - g) / d + 4;
       h *= 60; if (h < 0) h += 360;
     }
+    return [h, s, l];
+  }
+
+  function normalizeAccent(r, g, b) {
+    var hsl = rgbToHsl(r, g, b);
+    var h = hsl[0], s = hsl[1];
     // Target: vivid but not blinding. Pin luminance ~0.62. Lift weak saturation
     // so muted-but-colored art still reads — but leave near-gray art neutral
     // (don't invent a hue for a monochrome cover).
     if (s < 0.12) { s = Math.min(s, 0.08); }
     else { s = Math.max(s, 0.45); s = Math.min(s, 0.9); }
-    l = 0.62;
-    function hue2(p, q, t) {
-      if (t < 0) t += 1; if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    }
-    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    var pp = 2 * l - q;
-    var hk = h / 360;
-    return [
-      Math.round(hue2(pp, q, hk + 1 / 3) * 255),
-      Math.round(hue2(pp, q, hk) * 255),
-      Math.round(hue2(pp, q, hk - 1 / 3) * 255)
-    ];
+    return hslToRgb(h, s, 0.62);
   }
 
   function hslToRgb(h, s, l) {
@@ -126,16 +116,8 @@
   // Four harmonious colors derived from the accent's hue (analogous + a far
   // accent). Always vivid, so the background mesh reads as color on any album.
   function accentPalette(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
-    var h = 0, s = 0, l = (max + min) / 2;
-    if (d !== 0) {
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      if (max === r) h = ((g - b) / d) % 6;
-      else if (max === g) h = (b - r) / d + 2;
-      else h = (r - g) / d + 4;
-      h *= 60; if (h < 0) h += 360;
-    }
+    var hsl = rgbToHsl(r, g, b);
+    var h = hsl[0], s = hsl[1];
     var S = Math.min(0.85, Math.max(0.5, s));
     var offsets = [0, 32, -32, 158];
     var lums = [0.56, 0.52, 0.5, 0.46];
@@ -1945,18 +1927,22 @@
     var song = getSongInfo();
     overlay = document.createElement("div");
     overlay.className = "aml-overlay";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-label", "Lyrics");
+    applyAccentColor(overlay, artUrl);
     var bgTint = document.createElement("div");
     bgTint.className = "aml-bg-tint";
     if (artUrl) bgTint.style.backgroundImage = cssUrl(artUrl);
     overlay.appendChild(bgTint);
     var left = document.createElement("div");
     left.className = "aml-left";
-    if (artUrl) { var a = document.createElement("img"); a.className = "aml-album-art"; a.src = artUrl; left.appendChild(a); }
+    if (artUrl) { var a = document.createElement("img"); a.className = "aml-album-art"; a.src = artUrl; a.alt = ""; left.appendChild(a); }
     var t = document.createElement("div"); t.className = "aml-song-title"; t.textContent = song.title; left.appendChild(t);
     var ar = document.createElement("div"); ar.className = "aml-song-artist"; ar.textContent = song.rawArtist || song.artist; left.appendChild(ar);
     overlay.appendChild(left);
     var msg = document.createElement("div"); msg.className = "aml-no-lyrics"; msg.textContent = "No lyrics available"; overlay.appendChild(msg);
     var cb = document.createElement("button"); cb.className = "aml-close"; cb.textContent = "\u00d7";
+    cb.setAttribute("aria-label", "Close lyrics");
     cb.addEventListener("click", function () { closedByUser = true; hideOverlay(); });
     overlay.appendChild(cb);
     document.body.appendChild(overlay);
@@ -2071,7 +2057,9 @@
           result.push({ time: midTime, text: INTERLUDE_MARKER, interlude: true });
         }
       }
-      result.push({ time: parsed[i].time, text: parsed[i].text, interlude: false });
+      var entry = { time: parsed[i].time, text: parsed[i].text, interlude: false };
+      if (parsed[i].words) entry.words = parsed[i].words;
+      result.push(entry);
     }
     if (parsed.length > 0 && parsed[0].time >= INTERLUDE_GAP) {
       result.unshift({ time: parsed[0].time * 0.3, text: INTERLUDE_MARKER, interlude: true });

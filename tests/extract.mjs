@@ -32,6 +32,7 @@ const NAMES = [
   "insertInterludes",
   "remapWordDataIndices",
   "cssUrl",
+  "rgbToHsl",
   "normalizeAccent",
   "hslToRgb",
   "accentPalette",
