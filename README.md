@@ -4,6 +4,10 @@ Apple Music–style **synced lyrics** overlaid on [music.youtube.com](https://mu
 
 > Chrome Extension (Manifest V3), vanilla JavaScript — no build step, no bundler, no dependencies.
 
+![YT Music Lyrics — full-screen synced lyrics with Korean romanization](preview/hero.png)
+
+<sub>Design preview, rendered from the real `lyrics.css`; album art and lyrics shown are placeholders.</sub>
+
 ## Features
 
 - **Synced lyrics** — line- and word-level (karaoke-style) timing, scrolled in lockstep with playback.

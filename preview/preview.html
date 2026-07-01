@@ -42,7 +42,7 @@
 
   <button class="aml-close" aria-label="Close">×</button>
 
-  <div class="aml-offset-controls" style="opacity:1; transform:none;">
+  <div class="aml-offset-controls" id="offctl">
     <button class="aml-offset-btn">−0.1s</button>
     <span class="aml-offset-display">+0ms</span>
     <button class="aml-offset-btn">+0.1s</button>
@@ -114,6 +114,9 @@
     }
   }
   if (p.get("roman") === "1") ov.classList.add("aml-show-roman");
+  // Offset/font controls are hover-only in the real overlay; force them visible
+  // only for QA (?controls=1) so the default screenshot is a clean "resting" view.
+  if (p.get("controls") === "1") { document.getElementById("offctl").style.opacity = "1"; document.getElementById("offctl").style.transform = "none"; }
 </script>
 </body>
 </html>
