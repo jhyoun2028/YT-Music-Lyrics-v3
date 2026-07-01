@@ -2102,7 +2102,14 @@
     var t = document.createElement("div"); t.className = "aml-song-title"; t.textContent = song.title; left.appendChild(t);
     var ar = document.createElement("div"); ar.className = "aml-song-artist"; ar.textContent = song.rawArtist || song.artist; left.appendChild(ar);
     overlay.appendChild(left);
-    var msg = document.createElement("div"); msg.className = "aml-no-lyrics"; msg.textContent = "No lyrics available"; overlay.appendChild(msg);
+    var msg = document.createElement("div"); msg.className = "aml-no-lyrics";
+    var msgIcon = makeIcon("M5 8h14M5 12h10M5 16h6", true);
+    msgIcon.setAttribute("class", "aml-no-lyrics-icon");
+    msg.appendChild(msgIcon);
+    var msgText = document.createElement("div"); msgText.className = "aml-no-lyrics-text";
+    msgText.textContent = "No lyrics available";
+    msg.appendChild(msgText);
+    overlay.appendChild(msg);
     var cb = document.createElement("button"); cb.className = "aml-close"; cb.textContent = "\u00d7";
     cb.setAttribute("aria-label", "Close lyrics");
     cb.addEventListener("click", function () { closedByUser = true; hideOverlay(); });

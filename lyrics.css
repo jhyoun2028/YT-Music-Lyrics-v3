@@ -506,12 +506,24 @@
   inset: 0;
   z-index: 2;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.18);
+  gap: 15px;
+}
+
+.aml-no-lyrics-icon {
+  width: 34px;
+  height: 34px;
+  color: rgba(var(--aml-accent), 0.72);
+  opacity: 0.85;
+}
+
+.aml-no-lyrics-text {
+  color: rgba(255, 255, 255, 0.44);
   font-size: 1rem;
-  font-weight: 480;
-  letter-spacing: 0.03em;
+  font-weight: 520;
+  letter-spacing: 0.04em;
 }
 
 /* ── Loading screen ── */

@@ -8,7 +8,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="stylesheet" href="../lyrics.css?v=4" />
+<link rel="stylesheet" href="../lyrics.css?v=5" />
 <style> html, body { margin: 0; height: 100%; background: #000; } </style>
 </head>
 <body>
@@ -99,6 +99,39 @@
   if (p.get("state") === "paused") ov.classList.remove("aml-playing");
   document.getElementById("bg").style.backgroundImage = "url(\"" + svg(false) + "\")";
   document.getElementById("art").src = svg(true);
+
+  // ?loading=1 — render the loading screen (showLoadingOverlay's DOM) instead of
+  // the lyric layout, so the pre-fetch state can be screenshotted and iterated.
+  if (p.get("loading") === "1") {
+    ov.classList.add("aml-loading");
+    var kill = ov.querySelectorAll(".aml-left, .aml-content, .aml-toolbar, .aml-offset-controls, .aml-close");
+    for (var ki = 0; ki < kill.length; ki++) kill[ki].parentNode.removeChild(kill[ki]);
+    var lc = document.createElement("div");
+    lc.className = "aml-loading-center";
+    var la = document.createElement("img"); la.className = "aml-loading-art"; la.src = svg(true); lc.appendChild(la);
+    var ls = document.createElement("div"); ls.className = "aml-loading-spinner"; lc.appendChild(ls);
+    var ll = document.createElement("div"); ll.className = "aml-loading-label"; ll.textContent = p.get("title") || "사랑인가 봐"; lc.appendChild(ll);
+    var lsub = document.createElement("div"); lsub.className = "aml-loading-sub"; lsub.textContent = "Finding lyrics…"; lc.appendChild(lsub);
+    ov.appendChild(lc);
+    var lx = document.createElement("button"); lx.className = "aml-close"; lx.textContent = "×"; lx.setAttribute("aria-label", "Cancel"); ov.appendChild(lx);
+  }
+
+  // ?nolyrics=1 — render showNoLyrics's DOM: the album-art/title/artist column
+  // plus a centered "No lyrics available" message, no lyric list or toolbar.
+  if (p.get("nolyrics") === "1") {
+    var nkill = ov.querySelectorAll(".aml-content, .aml-toolbar, .aml-offset-controls");
+    for (var nki = 0; nki < nkill.length; nki++) nkill[nki].parentNode.removeChild(nkill[nki]);
+    var nmsg = document.createElement("div"); nmsg.className = "aml-no-lyrics";
+    var nns = "http://www.w3.org/2000/svg";
+    var nic = document.createElementNS(nns, "svg");
+    nic.setAttribute("viewBox", "0 0 24 24"); nic.setAttribute("class", "aml-no-lyrics-icon"); nic.setAttribute("fill", "none");
+    var npath = document.createElementNS(nns, "path");
+    npath.setAttribute("d", "M5 8h14M5 12h10M5 16h6"); npath.setAttribute("stroke", "currentColor");
+    npath.setAttribute("stroke-width", "2"); npath.setAttribute("stroke-linecap", "round"); npath.setAttribute("stroke-linejoin", "round");
+    nic.appendChild(npath); nmsg.appendChild(nic);
+    var ntx = document.createElement("div"); ntx.className = "aml-no-lyrics-text"; ntx.textContent = "No lyrics available"; nmsg.appendChild(ntx);
+    ov.appendChild(nmsg);
+  }
 
   // Romanization sub-lines (mirrors content.js romanizeHangul) — ?roman=1 shows them.
   var RI = ["g","kk","n","d","tt","r","m","b","pp","s","ss","","j","jj","ch","k","t","p","h"];
