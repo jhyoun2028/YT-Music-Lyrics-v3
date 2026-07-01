@@ -11,6 +11,12 @@ test("romanizeHangul: per-syllable Revised Romanization", () => {
   assert.equal(romanizeHangul("이게"), "ige");
 });
 
+test("romanizeHangul: batchim liaison before ㅇ (연음)", () => {
+  assert.equal(romanizeHangul("생각이"), "saenggagi");   // ㄱ moves: ...ga-gi
+  assert.equal(romanizeHangul("음악을"), "eumageul");     // ㅁ, ㄱ both liaise
+  assert.equal(romanizeHangul("사랑을"), "sarangeul");    // ㅇ(ng) does NOT move
+});
+
 test("romanizeHangul: non-Hangul passes through; mixed lines work", () => {
   assert.equal(romanizeHangul("oh baby"), "oh baby");
   assert.equal(romanizeHangul("봐 oh"), "bwa oh");

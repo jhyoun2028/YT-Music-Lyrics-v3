@@ -71,6 +71,11 @@
   var RR_INITIAL = ["g", "kk", "n", "d", "tt", "r", "m", "b", "pp", "s", "ss", "", "j", "jj", "ch", "k", "t", "p", "h"];
   var RR_MEDIAL = ["a", "ae", "ya", "yae", "eo", "e", "yeo", "ye", "o", "wa", "wae", "oe", "yo", "u", "wo", "we", "wi", "yu", "eu", "ui", "i"];
   var RR_FINAL = ["", "k", "k", "k", "n", "n", "n", "t", "l", "k", "m", "l", "l", "l", "p", "l", "m", "p", "p", "t", "t", "ng", "t", "t", "k", "t", "p", "t"];
+  // A movable final consonant (batchim) before a syllable that starts with ㅇ
+  // (silent initial) liaises — its sound becomes that next syllable's initial
+  // (연음): 생각이 → saeng·ga·gi (not ...ki). Only clean single consonants;
+  // ㅇ(ng), ㅎ, and clusters keep their plain final for simplicity.
+  var RR_LIAISON = { 1: "g", 2: "kk", 4: "n", 7: "d", 8: "r", 16: "m", 17: "b", 19: "s", 20: "ss", 22: "j", 23: "ch", 24: "k", 25: "t", 26: "p" };
 
   function hasHangul(s) {
     return /[가-힣]/.test(s || "");
@@ -78,17 +83,31 @@
 
   function romanizeHangul(text) {
     if (!text) return "";
-    var out = "";
+    // Decompose to tokens first so we can look ahead for liaison.
+    var toks = [];
     for (var i = 0; i < text.length; i++) {
       var code = text.charCodeAt(i);
       if (code >= 0xAC00 && code <= 0xD7A3) {
         var idx = code - 0xAC00;
-        var cho = Math.floor(idx / 588);
-        var jung = Math.floor((idx % 588) / 28);
-        var jong = idx % 28;
-        out += RR_INITIAL[cho] + RR_MEDIAL[jung] + RR_FINAL[jong];
+        toks.push([Math.floor(idx / 588), Math.floor((idx % 588) / 28), idx % 28]);
       } else {
-        out += text.charAt(i);
+        toks.push(text.charAt(i));
+      }
+    }
+    var out = "", carry = "";
+    for (var t = 0; t < toks.length; t++) {
+      var tok = toks[t];
+      if (typeof tok === "string") { out += tok; carry = ""; continue; }
+      var initial = carry !== "" ? carry : RR_INITIAL[tok[0]];
+      carry = "";
+      var jong = tok[2];
+      var next = toks[t + 1];
+      var liaise = jong && RR_LIAISON[jong] && next && typeof next !== "string" && next[0] === 11;
+      if (liaise) {
+        carry = RR_LIAISON[jong];
+        out += initial + RR_MEDIAL[tok[1]];
+      } else {
+        out += initial + RR_MEDIAL[tok[1]] + RR_FINAL[jong];
       }
     }
     return out;
