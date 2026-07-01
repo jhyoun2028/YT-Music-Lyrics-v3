@@ -2,7 +2,19 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import core from "./extract.mjs";
 
-const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette } = core;
+const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette, mxmExtractSubtitleBody } = core;
+
+test("mxmExtractSubtitleBody: pulls the subtitle body from the nested macro shape", () => {
+  const body = "[00:01.00]hi";
+  const data = { message: { body: { macro_calls: { "track.subtitles.get": { message: { body: { subtitle_list: [{ subtitle: { subtitle_body: body } }] } } } } } } };
+  assert.equal(mxmExtractSubtitleBody(data), body);
+});
+
+test("mxmExtractSubtitleBody: any missing level returns falsy (no throw)", () => {
+  assert.ok(!mxmExtractSubtitleBody({}));
+  assert.ok(!mxmExtractSubtitleBody({ message: { body: { macro_calls: {} } } }));
+  assert.ok(!mxmExtractSubtitleBody(null));
+});
 
 test("cssUrl: escapes quotes and backslashes so it can't break out of url()", () => {
   assert.equal(cssUrl("https://x/a.png"), 'url("https://x/a.png")');

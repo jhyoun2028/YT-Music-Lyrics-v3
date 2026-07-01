@@ -36,6 +36,7 @@ const NAMES = [
   "normalizeAccent",
   "hslToRgb",
   "accentPalette",
+  "mxmExtractSubtitleBody",
 ];
 
 // Constants these functions close over in content.js.
