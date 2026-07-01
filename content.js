@@ -79,6 +79,17 @@
   // Nasalization: an obstruent batchim before a ㄴ/ㅁ initial takes a nasal sound
   // (ㄱ-type→ng, ㄷ-type→n, ㅂ-type→m): 국물→gungmul, 있는→inneun.
   var RR_NASAL = { 1: "ng", 2: "ng", 3: "ng", 9: "ng", 24: "ng", 7: "n", 19: "n", 20: "n", 22: "n", 23: "n", 25: "n", 27: "n", 14: "m", 17: "m", 18: "m", 26: "m" };
+  // Double batchim (겹받침) before a silent ㅇ: the first consonant stays as this
+  // syllable's final, the second liaises to the next initial — 읽어 ilgeo, 앉아
+  // anja, 젊어 jeolmeo, 넓어 neolbeo. ㅀ is special: the ㅎ drops and ㄹ itself
+  // liaises as r (싫어 sireo).  Value is [keptFinal, carriedInitial].
+  var RR_DBL_LIAISON = { 5: ["n", "j"], 9: ["l", "g"], 10: ["l", "m"], 11: ["l", "b"], 15: ["", "r"] };
+  // Aspiration (격음화) across ㅎ: a ㅎ batchim + ㄱ/ㄷ/ㅈ/ㅂ initial, or a ㄱ/ㄷ/ㅂ/ㅈ
+  // batchim + ㅎ initial, merge into one aspirated stop — 좋고 joko, 좋다 jota,
+  // 좋지 jochi, 축하 chuka, 급히 geupi. RR_ASP_FWD keys are the *next initial*'s
+  // index; RR_ASP_BACK keys are this syllable's *final* index.
+  var RR_ASP_FWD = { 0: "k", 3: "t", 12: "ch", 7: "p" };
+  var RR_ASP_BACK = { 1: "k", 7: "t", 17: "p", 22: "ch" };
 
   function hasHangul(s) {
     return /[가-힣]/.test(s || "");
@@ -105,23 +116,39 @@
       carry = "";
       var jong = tok[2];
       var next = toks[t + 1];
+      var hasNext = next && typeof next !== "string";
+      var nextIni = hasNext ? next[0] : -1;
       // next syllable begins with ㅇ (silent initial) → the final can carry over
-      var nextEum = next && typeof next !== "string" && next[0] === 11;
+      var nextEum = nextIni === 11;
       // ...and its vowel is i / iotized (ㅣㅑㅕㅛㅠㅖ) → triggers palatalization
       var nm = nextEum ? next[1] : -1;
       var iota = nm === 20 || nm === 2 || nm === 6 || nm === 12 || nm === 17 || nm === 7;
+      var body = initial + RR_MEDIAL[tok[1]];
       if (nextEum && iota && (jong === 7 || jong === 25)) {
-        carry = jong === 7 ? "j" : "ch";      // 굳이 → guji, 같이 → gachi
-        out += initial + RR_MEDIAL[tok[1]];
+        carry = jong === 7 ? "j" : "ch";       // 굳이 → guji, 같이 → gachi
+        out += body;
       } else if (nextEum && jong === 27) {
-        out += initial + RR_MEDIAL[tok[1]];    // ㅎ before a vowel is silent: 좋아 → joa
+        out += body;                           // ㅎ before a vowel is silent: 좋아 → joa
+      } else if (nextEum && RR_DBL_LIAISON[jong]) {
+        out += body + RR_DBL_LIAISON[jong][0]; // 읽어 → ilgeo, 앉아 → anja, 싫어 → sireo
+        carry = RR_DBL_LIAISON[jong][1];
       } else if (nextEum && jong && RR_LIAISON[jong]) {
-        carry = RR_LIAISON[jong];              // 생각이 → saenggagi
-        out += initial + RR_MEDIAL[tok[1]];
-      } else if (next && typeof next !== "string" && (next[0] === 2 || next[0] === 6) && RR_NASAL[jong]) {
-        out += initial + RR_MEDIAL[tok[1]] + RR_NASAL[jong];   // 국물 → gungmul
+        carry = RR_LIAISON[jong];              // 생각이 → saenggagi, 살아 → sara
+        out += body;
+      } else if (jong === 27 && RR_ASP_FWD[nextIni]) {
+        carry = RR_ASP_FWD[nextIni];           // 좋고 → joko, 좋다 → jota, 좋지 → jochi
+        out += body;
+      } else if (nextIni === 18 && RR_ASP_BACK[jong]) {
+        carry = RR_ASP_BACK[jong];             // 축하 → chuka, 급히 → geupi
+        out += body;
+      } else if (jong === 4 && nextIni === 5) {
+        out += body + "l"; carry = "l";        // ㄴ+ㄹ liquidizes → ll: 신라 → silla
+      } else if (jong === 8 && nextIni === 2) {
+        out += body + "l"; carry = "l";        // ㄹ+ㄴ liquidizes → ll: 설날 → seollal
+      } else if (hasNext && (nextIni === 2 || nextIni === 6) && RR_NASAL[jong]) {
+        out += body + RR_NASAL[jong];          // 국물 → gungmul, 있는 → inneun
       } else {
-        out += initial + RR_MEDIAL[tok[1]] + RR_FINAL[jong];
+        out += body + RR_FINAL[jong];
       }
     }
     return out;

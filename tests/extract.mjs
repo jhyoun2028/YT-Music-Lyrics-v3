@@ -54,6 +54,9 @@ const constants = `
   var RR_FINAL = ["","k","k","k","n","n","n","t","l","k","m","l","l","l","p","l","m","p","p","t","t","ng","t","t","k","t","p","t"];
   var RR_LIAISON = { 1:"g",2:"kk",4:"n",7:"d",8:"r",16:"m",17:"b",19:"s",20:"ss",22:"j",23:"ch",24:"k",25:"t",26:"p" };
   var RR_NASAL = { 1:"ng",2:"ng",3:"ng",9:"ng",24:"ng",7:"n",19:"n",20:"n",22:"n",23:"n",25:"n",27:"n",14:"m",17:"m",18:"m",26:"m" };
+  var RR_DBL_LIAISON = { 5:["n","j"],9:["l","g"],10:["l","m"],11:["l","b"],15:["","r"] };
+  var RR_ASP_FWD = { 0:"k",3:"t",12:"ch",7:"p" };
+  var RR_ASP_BACK = { 1:"k",7:"t",17:"p",22:"ch" };
 `;
 
 const body =

@@ -68,6 +68,32 @@ test("romanizeHangul: nasalization of obstruent batchim before ㄴ/ㅁ", () => {
   assert.equal(romanizeHangul("안녕"), "annyeong"); // ㄴ final unaffected (regression guard)
 });
 
+test("romanizeHangul: liquidization ㄴ+ㄹ / ㄹ+ㄴ → ll", () => {
+  assert.equal(romanizeHangul("신라"), "silla");     // ㄴ+ㄹ
+  assert.equal(romanizeHangul("설날"), "seollal");   // ㄹ+ㄴ
+  assert.equal(romanizeHangul("일년"), "illyeon");   // ㄹ+ㄴ
+  assert.equal(romanizeHangul("난로"), "nallo");     // ㄴ+ㄹ
+});
+
+test("romanizeHangul: double-batchim liaison before ㅇ (겹받침 연음)", () => {
+  assert.equal(romanizeHangul("읽어"), "ilgeo");     // ㄺ → l + g carries
+  assert.equal(romanizeHangul("앉아"), "anja");      // ㄵ → n + j carries
+  assert.equal(romanizeHangul("젊어"), "jeolmeo");   // ㄻ → l + m carries
+  assert.equal(romanizeHangul("넓어"), "neolbeo");   // ㄼ → l + b carries
+  assert.equal(romanizeHangul("싫어"), "sireo");     // ㅀ → ㅎ drops, ㄹ liaises as r
+  // Double batchim before a consonant keeps its single representative sound.
+  assert.equal(romanizeHangul("읽다"), "ikda");      // ㄺ before ㄷ → k (regression guard)
+});
+
+test("romanizeHangul: ㅎ aspiration (격음화)", () => {
+  assert.equal(romanizeHangul("좋고"), "joko");      // ㅎ + ㄱ → k
+  assert.equal(romanizeHangul("좋다"), "jota");      // ㅎ + ㄷ → t
+  assert.equal(romanizeHangul("좋지"), "jochi");     // ㅎ + ㅈ → ch
+  assert.equal(romanizeHangul("축하"), "chuka");     // ㄱ + ㅎ → k
+  assert.equal(romanizeHangul("급히"), "geupi");     // ㅂ + ㅎ → p
+  assert.equal(romanizeHangul("좋아"), "joa");       // ㅎ + ㅇ still silent (regression guard)
+});
+
 test("romanizeHangul: non-Hangul passes through; mixed lines work", () => {
   assert.equal(romanizeHangul("oh baby"), "oh baby");
   assert.equal(romanizeHangul("봐 oh"), "bwa oh");

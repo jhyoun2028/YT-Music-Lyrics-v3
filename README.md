@@ -12,7 +12,7 @@ Apple Music–style **synced lyrics** overlaid on [music.youtube.com](https://mu
 
 - **Synced lyrics** — line- and word-level (karaoke-style) timing, scrolled in lockstep with playback.
 - **Multiple sources with fallback** — Binimum (Apple Music TTML) → Musixmatch → lrclib.net → Cubey. First hit wins and is cached per song. Wrong-song matches are rejected by title+artist verification.
-- **🇰🇷 Korean romanization** — a romanized reading under each Hangul line (Revised Romanization with the common assimilation rules: 받침 liaison, palatalization, silent ㅎ, and nasalization). Toggle with **R**.
+- **🇰🇷 Korean romanization** — a romanized reading under each Hangul line (Revised Romanization with the common assimilation rules: 받침 liaison, palatalization, silent ㅎ, nasalization, liquidization (신라→*silla*), double-batchim liaison (읽어→*ilgeo*), and ㅎ-aspiration (좋다→*jota*)). Toggle with **R**.
 - **Sound-reactive background** — the blurred album backdrop gently pulses with the music. Toggle with **V**.
 - **Album-accent theming** — a color sampled from the cover tints the active-line glow, album halo, and controls.
 - **Controls** — click a line to seek, drag the progress bar, copy lyrics, **export synced lyrics as `.lrc`**, adjust text size, nudge sync offset per song.
