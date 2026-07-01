@@ -5,6 +5,7 @@
   var enabled = true;
   var overlay = null;
   var loadingEl = null;
+  var fadingOverlay = null;
   var activeIndex = -1;
   var lastSongTitle = "";
   var lyricsTabClicked = false;
@@ -581,12 +582,12 @@
     }).then(function (cached) {
       if (cached) return cached;
       return cubeyTurnstile().then(function (token) {
-        return fetch(CUBEY_API + "verify-turnstile", {
+        return fetchT(CUBEY_API + "verify-turnstile", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: token }),
           credentials: "include"
-        });
+        }, 6000);
       }).then(function (r) {
         if (!r.ok) return null;
         return r.json();
@@ -616,10 +617,10 @@
           "&videoId=" + encodeURIComponent(videoId) +
           "&alwaysFetchMetadata=false";
         if (debugVisible) console.log("[AML] Cubey fetch:", url);
-        return fetch(url, {
+        return fetchT(url, {
           headers: { "Authorization": "Bearer " + token },
           credentials: "include"
-        }).then(function (r) {
+        }, 6000).then(function (r) {
           if (debugVisible) console.log("[AML] Cubey response:", r.status);
           if (r.status === 403) {
             // Token expired/rejected — refresh and retry. The JWT travels in the
@@ -627,10 +628,10 @@
             // the retried response as JSON like the success path below.
             return cubeyGetJWT(true).then(function (newJwt) {
               if (!newJwt) return null;
-              return fetch(url, {
+              return fetchT(url, {
                 headers: { "Authorization": "Bearer " + newJwt },
                 credentials: "include"
-              }).then(function (r2) {
+              }, 6000).then(function (r2) {
                 return r2.ok ? r2.json() : null;
               });
             });
@@ -1224,10 +1225,17 @@
       var v = getVideo();
       var durReady = v && v.duration > 0 && !isNaN(v.duration);
       var titleFresh = s.title && s.title !== prevTitle;
-      if ((titleFresh && durReady) || tries >= 20) {
-        lastSongTitle = s.title || prevTitle;
+      if (titleFresh && durReady) {
+        lastSongTitle = s.title;
         pendingReload = false;
         tryShowLyrics();
+      } else if (tries >= 20) {
+        // Player bar never refreshed the title — don't fetch/cache lyrics under
+        // the NEW videoId using the OLD title (that poisons the cache). Bail to
+        // the no-lyrics state; the next real song-change will retry cleanly.
+        lastSongTitle = prevTitle;
+        pendingReload = false;
+        showNoLyrics();
       } else {
         tries++;
         setTimeout(waitForNewSong, 150);
@@ -1957,20 +1965,28 @@
 
   function hideOverlay() {
     stopSync();
+    stopAudioReactive();
     cleanupVideoEvents();
     if (!overlay) return;
     overlay.classList.remove("aml-visible");
+    // Remove any element still fading out from a previous hide, then defer this
+    // one for the CSS fade. Tracking it means a song-change mid-fade (which nulls
+    // `overlay`) can't strand a zombie .aml-overlay in the DOM.
+    if (fadingOverlay && fadingOverlay.parentNode) fadingOverlay.remove();
+    fadingOverlay = overlay;
     var el = overlay;
-    setTimeout(function () { el.remove(); }, 500);
+    setTimeout(function () { if (el && el.parentNode) el.remove(); if (fadingOverlay === el) fadingOverlay = null; }, 500);
     overlay = null;
   }
 
   function removeOverlay() {
     stopSync();
+    stopAudioReactive();
     cleanupVideoEvents();
     cachedLineOffsets = null;
     cachedContentHeight = 0;
     cachedLines = null;
+    if (fadingOverlay && fadingOverlay.parentNode) { fadingOverlay.remove(); fadingOverlay = null; }
     if (overlay) { overlay.remove(); overlay = null; }
   }
 
@@ -2159,9 +2175,15 @@
 
   function hasOwn(obj, key) { return Object.prototype.hasOwnProperty.call(obj, key); }
 
+  function cacheTouch(videoId) {
+    var pos = lyricsCacheOrder.indexOf(videoId);
+    if (pos !== -1) lyricsCacheOrder.splice(pos, 1);
+    lyricsCacheOrder.push(videoId);
+  }
+
   function cacheLyrics(videoId, entry) {
     if (!videoId || !entry) return;
-    if (!hasOwn(lyricsCache, videoId)) lyricsCacheOrder.push(videoId);
+    cacheTouch(videoId);
     lyricsCache[videoId] = entry;
     while (lyricsCacheOrder.length > LYRICS_CACHE_MAX) {
       delete lyricsCache[lyricsCacheOrder.shift()];
@@ -2228,6 +2250,7 @@
 
     var vid = getVideoId();
     if (vid && hasOwn(lyricsCache, vid)) {
+      cacheTouch(vid);
       renderLyricsResult(lyricsCache[vid]);
       return;
     }

@@ -15,6 +15,7 @@ function startTick() {
       var currentTime = player.getCurrentTime();
       var duration = player.getDuration();
       var state = player.getPlayerStateObject();
+      if (!state) return;
       var playing = state.isPlaying && !state.isBuffering;
 
       if (!playing) {
