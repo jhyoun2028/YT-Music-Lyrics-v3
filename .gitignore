@@ -25,9 +25,11 @@ Thumbs.db
 
 .idea/*
 .claude
+.omc/
 
 sourcemaps_for_upload/*
 
 # dev-only visual harness artifacts
 preview/shot.png
+preview/review-*.png
 .playwright-mcp/
