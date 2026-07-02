@@ -83,9 +83,25 @@
   100% { opacity: 1; }
 }
 
-/* The colorful drift mesh belonged to the redesign; the original look uses the
-   blurred album art above. content.js still creates the node — keep it hidden. */
-.aml-mesh { display: none; }
+/* A single soft accent aura that drifts slowly for atmospheric depth — one hue,
+   low alpha, 34s (NOT the busy multi-color mesh). Sits over the blurred art. */
+.aml-mesh {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(42% 42% at 32% 28%, rgba(var(--aml-accent), 0.22) 0%, transparent 70%);
+  filter: blur(60px);
+  opacity: calc(0.55 + 0.35 * var(--aml-level));
+  animation: aml-aura 34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes aml-aura {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(7%, 5%, 0) scale(1.18); }
+}
+
 
 /* ── Left Panel (Album Art + Info) ── */
 
