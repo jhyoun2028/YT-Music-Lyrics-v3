@@ -2,7 +2,28 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import core from "./extract.mjs";
 
-const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette, mxmExtractSubtitleBody, hasHangul, romanizeHangul, parseCubeyResponse } = core;
+const { parseLRC, parseTTMLTime, formatTime, getArtistVariations, getTitleVariations, normMatch, looseMatch, candidateMatches, insertInterludes, remapWordDataIndices, cssUrl, normalizeAccent, hslToRgb, accentPalette, mxmExtractSubtitleBody, hasHangul, romanizeHangul, parseCubeyResponse, lrcTimeTag, serializeLRC } = core;
+
+test("lrcTimeTag: zero-padded [mm:ss.xx]", () => {
+  assert.equal(lrcTimeTag(0), "[00:00.00]");
+  assert.equal(lrcTimeTag(1), "[00:01.00]");
+  assert.equal(lrcTimeTag(65.5), "[01:05.50]");
+  assert.equal(lrcTimeTag(600), "[10:00.00]");
+});
+
+test("serializeLRC: round-trips timed lines and skips interludes", () => {
+  const data = [
+    { time: 1, text: "a" },
+    { time: 65.5, text: "b" },
+    { interlude: true, time: 70, text: "♪" },
+    { time: 80, text: "c" },
+  ];
+  assert.equal(serializeLRC(data), "[00:01.00]a\n[01:05.50]b\n[01:20.00]c");
+  // and it parses back to the same times/texts
+  const back = parseLRC(serializeLRC(data));
+  assert.deepEqual(back.map((l) => l.text), ["a", "b", "c"]);
+  assert.equal(back[1].time, 65.5);
+});
 
 test("parseCubeyResponse: normalizes each non-TTML branch (mxm / lrclib / plain)", () => {
   const synced = "[00:01.00]a\n[00:02.00]b";

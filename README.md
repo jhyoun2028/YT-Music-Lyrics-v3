@@ -15,7 +15,7 @@ Apple Music–style **synced lyrics** overlaid on [music.youtube.com](https://mu
 - **🇰🇷 Korean romanization** — a romanized reading under each Hangul line (Revised Romanization with the common assimilation rules: 받침 liaison, palatalization, silent ㅎ, and nasalization). Toggle with **R**.
 - **Sound-reactive background** — the blurred album backdrop gently pulses with the music. Toggle with **V**.
 - **Album-accent theming** — a color sampled from the cover tints the active-line glow, album halo, and controls.
-- **Controls** — click a line to seek, drag the progress bar, copy lyrics, adjust text size, nudge sync offset per song.
+- **Controls** — click a line to seek, drag the progress bar, copy lyrics, **export synced lyrics as `.lrc`**, adjust text size, nudge sync offset per song.
 
 ## Install (unpacked)
 
@@ -36,6 +36,7 @@ Use the toolbar popup to toggle the extension on/off. After editing any file, cl
 | `[` / `]` | Nudge sync offset earlier / later (per song, saved) |
 | `\` | Reset sync offset |
 | `C` | Copy lyrics to clipboard |
+| `E` | Export synced lyrics as an `.lrc` file |
 | `−` / `+` | Decrease / increase text size (saved) |
 | `V` | Toggle the sound-reactive background |
 | `R` | Toggle Korean romanization |

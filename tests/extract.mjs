@@ -40,6 +40,8 @@ const NAMES = [
   "hasHangul",
   "romanizeHangul",
   "parseCubeyResponse",
+  "lrcTimeTag",
+  "serializeLRC",
 ];
 
 // Constants these functions close over in content.js.

@@ -1393,6 +1393,26 @@
     return m + ":" + pad(sec);
   }
 
+  // [mm:ss.xx] tag for LRC export.
+  function lrcTimeTag(sec) {
+    if (!(sec >= 0)) sec = 0;
+    var m = Math.floor(sec / 60);
+    var s = sec - m * 60;
+    var ss = s.toFixed(2);
+    if (s < 10) ss = "0" + ss;
+    return "[" + (m < 10 ? "0" + m : m) + ":" + ss + "]";
+  }
+
+  // Serialize timed lyrics back to LRC (skips interlude markers). Pure/testable.
+  function serializeLRC(data) {
+    var out = [];
+    for (var i = 0; i < data.length; i++) {
+      if (data[i].interlude) continue;
+      out.push(lrcTimeTag(data[i].time) + (data[i].text || ""));
+    }
+    return out.join("\n");
+  }
+
   function clickTransportButton(selectors) {
     for (var i = 0; i < selectors.length; i++) {
       var btn = document.querySelector(selectors[i]);
@@ -1578,6 +1598,26 @@
       document.body.removeChild(ta);
       flash(ok);
     } catch (e) { flash(false); }
+  }
+
+  // Download the current synced lyrics as an .lrc file (only when timed).
+  function exportLRC() {
+    if (!overlay) return;
+    if (!useTimedSync || !timedData || timedData.length < 2) { showToast("싱크 가사 없음 — 내보내기 불가"); return; }
+    try {
+      var lrc = serializeLRC(timedData);
+      if (!lrc) { showToast("내보낼 가사 없음"); return; }
+      var song = getSongInfo();
+      var name = ((song.artist ? song.artist + " - " : "") + (song.title || "lyrics"))
+        .replace(/[\/\\:*?"<>|]/g, "_").slice(0, 120) + ".lrc";
+      var blob = new Blob([lrc], { type: "text/plain;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) { } }, 2000);
+      showToast("LRC 내보냄");
+    } catch (e) { showToast("내보내기 실패"); }
   }
 
   function setActive(index, correctedTime) {
@@ -1926,7 +1966,7 @@
     toolbarScrub.appendChild(toolbarProgress);
     toolbarScrub.appendChild(durationEl);
 
-    // Right: copy lyrics.
+    // Right: copy + export lyrics.
     var toolbarRight = document.createElement("div");
     toolbarRight.className = "aml-toolbar-right";
     var copyBtn = document.createElement("button");
@@ -1935,7 +1975,14 @@
     copyBtn.setAttribute("aria-label", "Copy lyrics");
     copyBtn.title = "Copy lyrics (C)";
     copyBtn.addEventListener("click", copyLyricsToClipboard);
+    var exportBtn = document.createElement("button");
+    exportBtn.className = "aml-tb-btn aml-tb-export";
+    exportBtn.appendChild(makeIcon("M12 3v12m0 0l-4-4m4 4l4-4M5 21h14", true));
+    exportBtn.setAttribute("aria-label", "Export .lrc");
+    exportBtn.title = "Export .lrc (E)";
+    exportBtn.addEventListener("click", exportLRC);
     toolbarRight.appendChild(copyBtn);
+    toolbarRight.appendChild(exportBtn);
 
     toolbarInner.appendChild(toolbarControls);
     toolbarInner.appendChild(toolbarScrub);
@@ -2552,6 +2599,7 @@
     else if (e.key === "]") { e.preventDefault(); bumpOffset(0.1); }
     else if (e.key === "\\") { e.preventDefault(); bumpOffset(-userOffset); }
     else if (e.key === "c" || e.key === "C") { e.preventDefault(); copyLyricsToClipboard(); }
+    else if (e.key === "e" || e.key === "E") { e.preventDefault(); exportLRC(); }
     else if (e.key === "-" || e.key === "_") { e.preventDefault(); bumpFontScale(-FONT_SCALE_STEP); }
     else if (e.key === "=" || e.key === "+") { e.preventDefault(); bumpFontScale(FONT_SCALE_STEP); }
     else if (e.key === "v" || e.key === "V") { e.preventDefault(); toggleAudioReactive(); }
