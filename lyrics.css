@@ -783,9 +783,11 @@
 .aml-tb-btn.aml-tb-play {
   width: 34px;
   height: 34px;
-  background: rgba(var(--aml-accent), 0.95);
-  color: #0a0a0f;
-  box-shadow: 0 3px 12px rgba(var(--aml-accent), 0.25);
+  /* White fill + dark icon (premium, album-agnostic — a full-saturation accent
+     fill reads "candy" on hot covers); the album color lives in a soft halo. */
+  background: rgba(255, 255, 255, 0.95);
+  color: #0b0b10;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.32), 0 0 18px rgba(var(--aml-accent), 0.25);
 }
 
 .aml-tb-btn.aml-tb-play svg {
@@ -794,8 +796,8 @@
 }
 
 .aml-tb-btn.aml-tb-play:hover {
-  background: rgb(var(--aml-accent));
-  color: #0a0a0f;
+  background: #fff;
+  color: #0b0b10;
   transform: scale(1.06);
 }
 
